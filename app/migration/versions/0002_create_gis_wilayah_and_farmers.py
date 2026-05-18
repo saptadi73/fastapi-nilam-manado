@@ -10,6 +10,7 @@ from pathlib import Path
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 
 revision = "0002_gis_farmers"
 down_revision = "0001_create_users_table"
@@ -91,7 +92,12 @@ def upgrade():
 
     op.create_table(
         "farmers",
-        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column(
+            "id",
+            postgresql.UUID(as_uuid=True),
+            server_default=sa.text("gen_random_uuid()"),
+            nullable=False,
+        ),
         sa.Column("nama", sa.String(length=150), nullable=False),
         sa.Column("nik", sa.String(length=16), nullable=False),
         sa.Column("alamat", sa.String(length=255), nullable=False),

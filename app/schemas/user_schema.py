@@ -1,4 +1,6 @@
-# Contoh schema Pydantic
+from typing import Optional
+from uuid import UUID
+
 from pydantic import BaseModel
 from pydantic import ConfigDict
 
@@ -6,7 +8,7 @@ from pydantic import ConfigDict
 class UserSchema(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int = None
+    id: Optional[UUID] = None
     name: str
     email: str
     password: str = None

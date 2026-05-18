@@ -1,4 +1,6 @@
 from typing import Optional
+from uuid import UUID
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -31,8 +33,10 @@ class FarmerUpdate(BaseModel):
 class FarmerSchema(FarmerBase):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int
+    id: UUID
+    foto_path: Optional[str] = None
     desa_kelurahan: Optional[str] = None
     kecamatan: Optional[str] = None
     kabupaten_kota: Optional[str] = None
     provinsi: Optional[str] = None
+    foto_url: Optional[str] = None

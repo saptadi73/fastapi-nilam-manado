@@ -7,6 +7,7 @@ Create Date: 2026-05-18 09:45:00
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
 from sqlalchemy import inspect
 
 revision = "0001_create_users_table"
@@ -18,11 +19,17 @@ depends_on = None
 def upgrade():
     bind = op.get_bind()
     inspector = inspect(bind)
+    op.execute('CREATE EXTENSION IF NOT EXISTS "pgcrypto"')
 
     if "users" not in inspector.get_table_names():
         op.create_table(
             "users",
-            sa.Column("id", sa.Integer(), nullable=False),
+            sa.Column(
+                "id",
+                postgresql.UUID(as_uuid=True),
+                server_default=sa.text("gen_random_uuid()"),
+                nullable=False,
+            ),
             sa.Column("name", sa.String(), nullable=True),
             sa.Column("email", sa.String(), nullable=True),
             sa.Column("password", sa.String(), nullable=False),
