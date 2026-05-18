@@ -28,4 +28,5 @@ class Financing(Base):
     planting_production_id = Column(UUID(as_uuid=True), ForeignKey("planting_productions.id"), nullable=True, index=True)
     oil_production_id = Column(UUID(as_uuid=True), ForeignKey("oil_productions.id"), nullable=True, index=True)
     sub_total = Column(Float, nullable=False)
+    paid_by = Column(String(100), nullable=True)
     user_update_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True, index=True)

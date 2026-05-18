@@ -43,6 +43,7 @@ class FinancingBase(BaseModel):
     petani_id: UUID
     planting_production_id: Optional[UUID] = None
     oil_production_id: Optional[UUID] = None
+    paid_by: Optional[str] = Field(default=None, max_length=100)
     user_update_id: Optional[UUID] = None
 
 
@@ -60,6 +61,7 @@ class FinancingUpdate(BaseModel):
     petani_id: Optional[UUID] = None
     planting_production_id: Optional[UUID] = None
     oil_production_id: Optional[UUID] = None
+    paid_by: Optional[str] = Field(default=None, max_length=100)
     user_update_id: Optional[UUID] = None
 
 
