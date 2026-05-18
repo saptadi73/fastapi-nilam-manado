@@ -10,6 +10,7 @@ from app.database import get_db
 from app.models.farmer import Farmer
 from app.models.financing import Financing, FinancingProduct
 from app.models.oil_production import OilProduction
+from app.models.partner import Partner
 from app.models.planting_production import PlantingProduction
 from app.models.user import User
 from app.schemas.financing_schema import (
@@ -55,6 +56,21 @@ def validate_user_update(db: Session, user_id: Optional[UUID]):
     if not user:
         raise HTTPException(status_code=400, detail="User update tidak ditemukan")
     return user
+
+
+def validate_partner_exists(db: Session, partner_id: Optional[UUID]):
+    if not partner_id:
+        return None
+    partner = db.query(Partner).filter(Partner.id == partner_id).first()
+    if not partner:
+        raise HTTPException(status_code=400, detail="Partner tidak ditemukan")
+    return partner
+
+
+def apply_paid_by_default(data: dict):
+    if not data.get("partner_id") and not data.get("paid_by"):
+        data["paid_by"] = "Pembiayaan Sendiri"
+    return data
 
 
 def validate_production_refs(
@@ -109,12 +125,18 @@ def serialize_financing(db: Session, financing: Financing):
     data = FinancingSchema.model_validate(financing).model_dump()
     financing_produk_id = cast(UUID, financing.produk_id)
     financing_petani_id = cast(UUID, financing.petani_id)
+    financing_partner_id = cast(Optional[UUID], financing.partner_id)
     financing_planting_id = cast(Optional[UUID], financing.planting_production_id)
     financing_oil_id = cast(Optional[UUID], financing.oil_production_id)
     financing_user_update_id = cast(Optional[UUID], financing.user_update_id)
 
     product = db.query(FinancingProduct).filter(FinancingProduct.id == financing_produk_id).first()
     farmer = db.query(Farmer).filter(Farmer.id == financing_petani_id).first()
+    partner = (
+        db.query(Partner).filter(Partner.id == financing_partner_id).first()
+        if financing_partner_id is not None
+        else None
+    )
     planting = (
         db.query(PlantingProduction).filter(PlantingProduction.id == financing_planting_id).first()
         if financing_planting_id is not None
@@ -135,6 +157,11 @@ def serialize_financing(db: Session, financing: Financing):
     data["petani"] = (
         {"id": farmer.id, "nama": farmer.nama, "nik": farmer.nik, "hp": farmer.hp}
         if farmer
+        else None
+    )
+    data["partner"] = (
+        {"id": partner.id, "nama": partner.nama, "pic": partner.pic}
+        if partner
         else None
     )
     data["planting_production"] = (
@@ -218,6 +245,7 @@ def delete_financing_product(product_id: UUID, db: Session = Depends(get_db)):
 def list_financings(
     search: Optional[str] = Query(default=None),
     petani_id: Optional[UUID] = Query(default=None),
+    partner_id: Optional[UUID] = Query(default=None),
     produk_id: Optional[UUID] = Query(default=None),
     planting_production_id: Optional[UUID] = Query(default=None),
     oil_production_id: Optional[UUID] = Query(default=None),
@@ -231,6 +259,8 @@ def list_financings(
         query = query.filter(Financing.nama.ilike(f"%{search}%"))
     if petani_id:
         query = query.filter(Financing.petani_id == petani_id)
+    if partner_id:
+        query = query.filter(Financing.partner_id == partner_id)
     if produk_id:
         query = query.filter(Financing.produk_id == produk_id)
     if planting_production_id:
@@ -264,6 +294,7 @@ def create_financing(payload: FinancingCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
     get_product_or_404(db, data["produk_id"])
     validate_farmer_exists(db, data["petani_id"])
+    validate_partner_exists(db, data.get("partner_id"))
     validate_production_refs(
         db,
         data["petani_id"],
@@ -272,6 +303,7 @@ def create_financing(payload: FinancingCreate, db: Session = Depends(get_db)):
     )
     validate_user_update(db, data.get("user_update_id"))
     calculate_sub_total(data)
+    apply_paid_by_default(data)
     financing = Financing(**data)
     db.add(financing)
     db.commit()
@@ -298,6 +330,9 @@ def update_financing(
     if "petani_id" in data:
         validate_farmer_exists(db, data["petani_id"])
 
+    if "partner_id" in data:
+        validate_partner_exists(db, data["partner_id"])
+
     merged_petani_id = cast(UUID, data.get("petani_id", financing.petani_id))
     merged_planting_id = cast(Optional[UUID], data.get("planting_production_id", financing.planting_production_id))
     merged_oil_id = cast(Optional[UUID], data.get("oil_production_id", financing.oil_production_id))
@@ -312,6 +347,14 @@ def update_financing(
     }
     calculate_sub_total(merged)
     data["sub_total"] = merged["sub_total"]
+
+    if "partner_id" in data or "paid_by" in data:
+        merged_paid = {
+            "partner_id": data.get("partner_id", financing.partner_id),
+            "paid_by": data.get("paid_by", financing.paid_by),
+        }
+        apply_paid_by_default(merged_paid)
+        data["paid_by"] = merged_paid["paid_by"]
 
     for key, value in data.items():
         setattr(financing, key, value)

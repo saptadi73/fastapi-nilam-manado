@@ -25,6 +25,7 @@ class Financing(Base):
     harga = Column(Float, nullable=False)
     quantity = Column(Float, nullable=False)
     petani_id = Column(UUID(as_uuid=True), ForeignKey("farmers.id"), nullable=False, index=True)
+    partner_id = Column(UUID(as_uuid=True), ForeignKey("partners.id"), nullable=True, index=True)
     planting_production_id = Column(UUID(as_uuid=True), ForeignKey("planting_productions.id"), nullable=True, index=True)
     oil_production_id = Column(UUID(as_uuid=True), ForeignKey("oil_productions.id"), nullable=True, index=True)
     sub_total = Column(Float, nullable=False)

@@ -45,18 +45,24 @@ from app.services.financing_service import product_router as financing_product_r
 from app.services.financing_service import router as financing_router
 from app.services.land_service import router as land_router
 from app.services.oil_production_service import router as oil_production_router
+from app.services.partner_service import router as partner_router
 from app.services.planting_production_service import router as planting_production_router
 from app.services.production_note_service import (
     oil_note_router,
     planting_note_router,
 )
+from app.services.sales_service import product_router as sales_product_router
+from app.services.sales_service import router as sales_router
 from app.services.wilayah_service import router as wilayah_router
 
 app.include_router(auth_router)
 app.include_router(wilayah_router)
 app.include_router(farmer_router)
+app.include_router(partner_router)
 app.include_router(financing_product_router)
 app.include_router(financing_router)
+app.include_router(sales_product_router)
+app.include_router(sales_router)
 app.include_router(land_router)
 app.include_router(planting_production_router)
 app.include_router(oil_production_router)

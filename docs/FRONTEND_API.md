@@ -1997,6 +1997,7 @@ quantity                required, angka > 0
 petani_id               required, UUID petani
 planting_production_id  optional, UUID produksi tanam
 oil_production_id       optional, UUID produksi minyak
+partner_id              optional, UUID partner
 paid_by                 optional, nama pihak pembayar
 sub_total               dihitung backend = harga * quantity
 user_update_id          optional, UUID user
@@ -2008,6 +2009,7 @@ user_update_id          optional, UUID user
 GET /financings
 GET /financings?search=pupuk
 GET /financings?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+GET /financings?partner_id=8f34c2cf-9804-4de1-9dd3-37609073a052
 GET /financings?produk_id=7c0b606e-69cc-4070-8d54-48855f5c0223
 GET /financings?planting_production_id=0dd9c084-4253-46d9-8660-6fa87736b8f2
 GET /financings?oil_production_id=b4e8fa3e-4abd-4e04-9f9c-5c71ef6c8801
@@ -2046,6 +2048,7 @@ Payload:
   "harga": 25000,
   "quantity": 4,
   "petani_id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+  "partner_id": "8f34c2cf-9804-4de1-9dd3-37609073a052",
   "planting_production_id": "0dd9c084-4253-46d9-8660-6fa87736b8f2",
   "oil_production_id": null,
   "paid_by": "Koperasi Mitra",
@@ -2061,6 +2064,7 @@ Catatan validasi:
 Jika planting_production_id diisi, produksi tanam harus milik petani yang sama.
 Jika oil_production_id diisi, produksi minyak harus milik petani yang sama.
 sub_total selalu dihitung backend.
+Jika partner_id tidak diisi dan paid_by tidak diisi, backend otomatis mengisi paid_by = "Pembiayaan Sendiri".
 ```
 
 ### Update Pembiayaan
@@ -2114,6 +2118,7 @@ export interface Financing {
   harga: number;
   quantity: number;
   petani_id: string;
+  partner_id: string | null;
   planting_production_id: string | null;
   oil_production_id: string | null;
   paid_by: string | null;
@@ -2125,6 +2130,11 @@ export interface Financing {
     nama: string;
     nik: string;
     hp: string | null;
+  } | null;
+  partner: {
+    id: string;
+    nama: string;
+    pic: string | null;
   } | null;
   planting_production: {
     id: string;
@@ -2149,6 +2159,7 @@ export interface FinancingCreatePayload {
   harga: number;
   quantity: number;
   petani_id: string;
+  partner_id?: string | null;
   planting_production_id?: string | null;
   oil_production_id?: string | null;
   paid_by?: string | null;
@@ -2156,4 +2167,249 @@ export interface FinancingCreatePayload {
 }
 
 export type FinancingUpdatePayload = Partial<FinancingCreatePayload>;
+```
+
+## Penjualan
+
+### Produk Penjualan
+
+```txt
+GET    /sales-products
+GET    /sales-products?search=daun
+GET    /sales-products?jenis=barang
+GET    /sales-products?jenis=jasa
+GET    /sales-products/{id}
+POST   /sales-products
+PUT    /sales-products/{id}
+DELETE /sales-products/{id}
+```
+
+Field produk penjualan:
+
+```txt
+nama        required
+jenis       required, pilihan: jasa | barang
+harga       required, angka >= 0
+satuan      required
+deskripsi   optional
+```
+
+Contoh payload POST /sales-products:
+
+```json
+{
+  "nama": "Jasa Pengeringan",
+  "jenis": "jasa",
+  "harga": 15000,
+  "satuan": "kg",
+  "deskripsi": "Biaya jasa pengeringan daun nilam"
+}
+```
+
+### Transaksi Penjualan
+
+```txt
+GET /sales
+GET /sales?search=panen
+GET /sales?penjual_id=243b7917-8586-432e-9199-47bcedd8f2f9
+GET /sales?pembeli_id=8f34c2cf-9804-4de1-9dd3-37609073a052
+GET /sales?produk_penjualan_id=7c0b606e-69cc-4070-8d54-48855f5c0223
+GET /sales?tanggal_mulai=2026-05-01&tanggal_akhir=2026-05-31
+GET /sales/{id}
+POST /sales
+PUT /sales/{id}
+DELETE /sales/{id}
+```
+
+Field transaksi:
+
+```txt
+nama                 required
+tanggal              required, format YYYY-MM-DD
+deskripsi            optional
+produk_penjualan_id  required, UUID sales_products
+quantity             required, angka > 0
+harga                required, angka >= 0
+penjual_id           required, UUID petani
+pembeli_id           required, UUID partner
+sub_total            dihitung backend = harga * quantity
+```
+
+Contoh payload POST /sales:
+
+```json
+{
+  "nama": "Penjualan panen Mei",
+  "tanggal": "2026-05-20",
+  "deskripsi": "Penjualan daun nilam kering",
+  "produk_penjualan_id": "7c0b606e-69cc-4070-8d54-48855f5c0223",
+  "quantity": 120,
+  "harga": 55000,
+  "penjual_id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+  "pembeli_id": "8f34c2cf-9804-4de1-9dd3-37609073a052"
+}
+```
+
+### TypeScript Penjualan
+
+```ts
+export interface SalesProduct {
+  id: string;
+  nama: string;
+  jenis: "jasa" | "barang";
+  harga: number;
+  satuan: string;
+  deskripsi: string | null;
+}
+
+export interface Sale {
+  id: string;
+  nama: string;
+  tanggal: string;
+  deskripsi: string | null;
+  produk_penjualan_id: string;
+  quantity: number;
+  harga: number;
+  penjual_id: string;
+  pembeli_id: string;
+  sub_total: number;
+  produk_penjualan: SalesProduct | null;
+  penjual: {
+    id: string;
+    nama: string;
+    nik: string;
+    hp: string | null;
+  } | null;
+  pembeli: {
+    id: string;
+    nama: string;
+    pic: string | null;
+    hp: string | null;
+    email: string | null;
+  } | null;
+}
+
+export interface SaleCreatePayload {
+  nama: string;
+  tanggal: string;
+  deskripsi?: string | null;
+  produk_penjualan_id: string;
+  quantity: number;
+  harga: number;
+  penjual_id: string;
+  pembeli_id: string;
+}
+
+export type SaleUpdatePayload = Partial<SaleCreatePayload>;
+```
+
+## Partner
+
+Master partner dipakai untuk perusahaan/lembaga/perorangan yang berelasi dengan operasional.
+
+### Struktur Data Partner
+
+```txt
+nama                    required
+alamat                  required
+hp                      optional
+email                   optional
+pic                     optional, nama orang PIC
+web                     optional
+provinsi_kode           required, kode wilayah level provinsi
+kabupaten_kota_kode     required, kode wilayah level kabupaten_kota
+kecamatan_kode          required, kode wilayah level kecamatan
+```
+
+Validasi wilayah:
+
+```txt
+kabupaten_kota_kode harus berada di bawah provinsi_kode.
+kecamatan_kode harus berada di bawah kabupaten_kota_kode.
+```
+
+### List Partner
+
+```txt
+GET /partners
+GET /partners?search=mitra
+GET /partners?provinsi_kode=71
+GET /partners?kabupaten_kota_kode=7171
+GET /partners?kecamatan_kode=7171010
+```
+
+### Detail Partner
+
+```txt
+GET /partners/{id}
+```
+
+### Buat Partner
+
+```txt
+POST /partners
+```
+
+Payload:
+
+```json
+{
+  "nama": "PT Nilam Sejahtera",
+  "alamat": "Jl. Sudirman No. 10",
+  "hp": "08123456789",
+  "email": "info@nilamsejahtera.co.id",
+  "pic": "Budi Santoso",
+  "web": "https://nilamsejahtera.co.id",
+  "provinsi_kode": "71",
+  "kabupaten_kota_kode": "7171",
+  "kecamatan_kode": "7171010"
+}
+```
+
+### Update Partner
+
+```txt
+PUT /partners/{id}
+```
+
+Payload boleh parsial.
+
+### Hapus Partner
+
+```txt
+DELETE /partners/{id}
+```
+
+### TypeScript Partner
+
+```ts
+export interface Partner {
+  id: string;
+  nama: string;
+  alamat: string;
+  hp: string | null;
+  email: string | null;
+  pic: string | null;
+  web: string | null;
+  provinsi_kode: string;
+  kabupaten_kota_kode: string;
+  kecamatan_kode: string;
+  provinsi: string | null;
+  kabupaten_kota: string | null;
+  kecamatan: string | null;
+}
+
+export interface PartnerCreatePayload {
+  nama: string;
+  alamat: string;
+  hp?: string | null;
+  email?: string | null;
+  pic?: string | null;
+  web?: string | null;
+  provinsi_kode: string;
+  kabupaten_kota_kode: string;
+  kecamatan_kode: string;
+}
+
+export type PartnerUpdatePayload = Partial<PartnerCreatePayload>;
 ```

@@ -33,6 +33,12 @@ class FinancingProductionRefSchema(BaseModel):
     kode: str
 
 
+class FinancingPartnerRefSchema(BaseModel):
+    id: UUID
+    nama: str
+    pic: Optional[str] = None
+
+
 class FinancingBase(BaseModel):
     nama: str = Field(..., max_length=150)
     tanggal: date
@@ -41,6 +47,7 @@ class FinancingBase(BaseModel):
     harga: float = Field(..., ge=0)
     quantity: float = Field(..., gt=0)
     petani_id: UUID
+    partner_id: Optional[UUID] = None
     planting_production_id: Optional[UUID] = None
     oil_production_id: Optional[UUID] = None
     paid_by: Optional[str] = Field(default=None, max_length=100)
@@ -59,6 +66,7 @@ class FinancingUpdate(BaseModel):
     harga: Optional[float] = Field(default=None, ge=0)
     quantity: Optional[float] = Field(default=None, gt=0)
     petani_id: Optional[UUID] = None
+    partner_id: Optional[UUID] = None
     planting_production_id: Optional[UUID] = None
     oil_production_id: Optional[UUID] = None
     paid_by: Optional[str] = Field(default=None, max_length=100)
@@ -72,6 +80,7 @@ class FinancingSchema(FinancingBase):
     sub_total: float
     produk: Optional[FinancingProductSchema] = None
     petani: Optional[LandOwnerSchema] = None
+    partner: Optional[FinancingPartnerRefSchema] = None
     planting_production: Optional[FinancingProductionRefSchema] = None
     oil_production: Optional[FinancingProductionRefSchema] = None
     user_update: Optional[PlantingProductionUserSchema] = None
