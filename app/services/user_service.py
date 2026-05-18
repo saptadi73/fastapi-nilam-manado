@@ -1,10 +1,9 @@
 # Contoh service logic
 from app.models.user import User
-from app.schemas.user_schema import UserSchema
 from typing import List
 from sqlalchemy.orm import Session
 
-def get_users(db: Session) -> List[UserSchema]:
+def get_users(db: Session) -> List[User]:
     return db.query(User).all()
 
 def get_user_by_email(db: Session, email: str):

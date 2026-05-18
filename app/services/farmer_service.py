@@ -1,7 +1,7 @@
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from typing import Optional
+from typing import Optional, cast
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
@@ -34,11 +34,25 @@ def validate_farmer_wilayah(db: Session, data: dict):
 
     if not provinsi:
         raise HTTPException(status_code=400, detail="Kode provinsi tidak valid")
-    if not kabupaten or kabupaten.parent_kode != provinsi.kode:
+    if kabupaten is None:
         raise HTTPException(status_code=400, detail="Kode kabupaten/kota tidak sesuai provinsi")
-    if not kecamatan or kecamatan.parent_kode != kabupaten.kode:
+    kabupaten_parent_kode = cast(Optional[str], kabupaten.parent_kode)
+    provinsi_kode = cast(Optional[str], provinsi.kode)
+    if kabupaten_parent_kode != provinsi_kode:
+        raise HTTPException(status_code=400, detail="Kode kabupaten/kota tidak sesuai provinsi")
+
+    if kecamatan is None:
         raise HTTPException(status_code=400, detail="Kode kecamatan tidak sesuai kabupaten/kota")
-    if not desa or desa.parent_kode != kecamatan.kode:
+    kecamatan_parent_kode = cast(Optional[str], kecamatan.parent_kode)
+    kabupaten_kode = cast(Optional[str], kabupaten.kode)
+    if kecamatan_parent_kode != kabupaten_kode:
+        raise HTTPException(status_code=400, detail="Kode kecamatan tidak sesuai kabupaten/kota")
+
+    if desa is None:
+        raise HTTPException(status_code=400, detail="Kode desa/kelurahan tidak sesuai kecamatan")
+    desa_parent_kode = cast(Optional[str], desa.parent_kode)
+    kecamatan_kode = cast(Optional[str], kecamatan.kode)
+    if desa_parent_kode != kecamatan_kode:
         raise HTTPException(status_code=400, detail="Kode desa/kelurahan tidak sesuai kecamatan")
 
     return {
@@ -50,27 +64,40 @@ def validate_farmer_wilayah(db: Session, data: dict):
 
 
 def serialize_farmer(db: Session, farmer: Farmer):
-    wilayah = {
-        row.kode: row.nama
+    provinsi_kode = cast(Optional[str], farmer.provinsi_kode)
+    kabupaten_kota_kode = cast(Optional[str], farmer.kabupaten_kota_kode)
+    kecamatan_kode = cast(Optional[str], farmer.kecamatan_kode)
+    desa_kelurahan_kode = cast(Optional[str], farmer.desa_kelurahan_kode)
+    foto_path = cast(Optional[str], farmer.foto_path)
+
+    wilayah: dict[str, Optional[str]] = {
+        cast(str, row.kode): cast(Optional[str], row.nama)
         for row in db.query(GisWilayah)
         .filter(
             GisWilayah.kode.in_(
                 [
-                    farmer.provinsi_kode,
-                    farmer.kabupaten_kota_kode,
-                    farmer.kecamatan_kode,
-                    farmer.desa_kelurahan_kode,
+                    provinsi_kode,
+                    kabupaten_kota_kode,
+                    kecamatan_kode,
+                    desa_kelurahan_kode,
                 ]
             )
         )
         .all()
+        if row.kode is not None
     }
+
+    def get_wilayah_name(kode: Optional[str]) -> Optional[str]:
+        if kode is None:
+            return None
+        return wilayah.get(kode)
+
     data = FarmerSchema.model_validate(farmer).model_dump()
-    data["provinsi"] = wilayah.get(farmer.provinsi_kode)
-    data["kabupaten_kota"] = wilayah.get(farmer.kabupaten_kota_kode)
-    data["kecamatan"] = wilayah.get(farmer.kecamatan_kode)
-    data["desa_kelurahan"] = wilayah.get(farmer.desa_kelurahan_kode)
-    data["foto_url"] = f"/{farmer.foto_path}" if farmer.foto_path else None
+    data["provinsi"] = get_wilayah_name(provinsi_kode)
+    data["kabupaten_kota"] = get_wilayah_name(kabupaten_kota_kode)
+    data["kecamatan"] = get_wilayah_name(kecamatan_kode)
+    data["desa_kelurahan"] = get_wilayah_name(desa_kelurahan_kode)
+    data["foto_url"] = f"/{foto_path}" if foto_path else None
     return data
 
 
@@ -194,9 +221,10 @@ def upload_farmer_photo(
 ):
     farmer = get_farmer_or_404(db, farmer_id)
     new_foto_path = save_farmer_photo(foto)
-    remove_farmer_photo(farmer.foto_path)
+    current_foto_path = cast(Optional[str], farmer.foto_path)
+    remove_farmer_photo(current_foto_path)
 
-    farmer.foto_path = new_foto_path
+    setattr(farmer, "foto_path", new_foto_path)
     db.commit()
     db.refresh(farmer)
 
@@ -209,8 +237,9 @@ def upload_farmer_photo(
 @router.delete("/{farmer_id}/foto")
 def delete_farmer_photo(farmer_id: UUID, db: Session = Depends(get_db)):
     farmer = get_farmer_or_404(db, farmer_id)
-    remove_farmer_photo(farmer.foto_path)
-    farmer.foto_path = None
+    current_foto_path = cast(Optional[str], farmer.foto_path)
+    remove_farmer_photo(current_foto_path)
+    setattr(farmer, "foto_path", None)
     db.commit()
     db.refresh(farmer)
 
@@ -223,7 +252,8 @@ def delete_farmer_photo(farmer_id: UUID, db: Session = Depends(get_db)):
 @router.delete("/{farmer_id}")
 def delete_farmer(farmer_id: UUID, db: Session = Depends(get_db)):
     farmer = get_farmer_or_404(db, farmer_id)
-    remove_farmer_photo(farmer.foto_path)
+    current_foto_path = cast(Optional[str], farmer.foto_path)
+    remove_farmer_photo(current_foto_path)
     db.delete(farmer)
     db.commit()
     return JSONResponseHandler.success(data=None, message="Data petani berhasil dihapus")

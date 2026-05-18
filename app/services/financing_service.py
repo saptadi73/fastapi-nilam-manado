@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Optional
+from typing import Optional, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -74,14 +74,16 @@ def validate_production_refs(
         )
         if not planting:
             raise HTTPException(status_code=400, detail="Produksi tanam tidak ditemukan")
-        if planting.petani_id != petani_id:
+        planting_petani_id = cast(UUID, planting.petani_id)
+        if planting_petani_id != petani_id:
             raise HTTPException(status_code=400, detail="Produksi tanam tidak sesuai petani")
 
     if oil_production_id:
         oil = db.query(OilProduction).filter(OilProduction.id == oil_production_id).first()
         if not oil:
             raise HTTPException(status_code=400, detail="Produksi minyak tidak ditemukan")
-        if oil.petani_id != petani_id:
+        oil_petani_id = cast(UUID, oil.petani_id)
+        if oil_petani_id != petani_id:
             raise HTTPException(status_code=400, detail="Produksi minyak tidak sesuai petani")
 
     return planting, oil
@@ -105,21 +107,27 @@ def serialize_product(product: FinancingProduct):
 
 def serialize_financing(db: Session, financing: Financing):
     data = FinancingSchema.model_validate(financing).model_dump()
-    product = db.query(FinancingProduct).filter(FinancingProduct.id == financing.produk_id).first()
-    farmer = db.query(Farmer).filter(Farmer.id == financing.petani_id).first()
+    financing_produk_id = cast(UUID, financing.produk_id)
+    financing_petani_id = cast(UUID, financing.petani_id)
+    financing_planting_id = cast(Optional[UUID], financing.planting_production_id)
+    financing_oil_id = cast(Optional[UUID], financing.oil_production_id)
+    financing_user_update_id = cast(Optional[UUID], financing.user_update_id)
+
+    product = db.query(FinancingProduct).filter(FinancingProduct.id == financing_produk_id).first()
+    farmer = db.query(Farmer).filter(Farmer.id == financing_petani_id).first()
     planting = (
-        db.query(PlantingProduction).filter(PlantingProduction.id == financing.planting_production_id).first()
-        if financing.planting_production_id
+        db.query(PlantingProduction).filter(PlantingProduction.id == financing_planting_id).first()
+        if financing_planting_id is not None
         else None
     )
     oil = (
-        db.query(OilProduction).filter(OilProduction.id == financing.oil_production_id).first()
-        if financing.oil_production_id
+        db.query(OilProduction).filter(OilProduction.id == financing_oil_id).first()
+        if financing_oil_id is not None
         else None
     )
     user_update = (
-        db.query(User).filter(User.id == financing.user_update_id).first()
-        if financing.user_update_id
+        db.query(User).filter(User.id == financing_user_update_id).first()
+        if financing_user_update_id is not None
         else None
     )
 
@@ -290,9 +298,9 @@ def update_financing(
     if "petani_id" in data:
         validate_farmer_exists(db, data["petani_id"])
 
-    merged_petani_id = data.get("petani_id", financing.petani_id)
-    merged_planting_id = data.get("planting_production_id", financing.planting_production_id)
-    merged_oil_id = data.get("oil_production_id", financing.oil_production_id)
+    merged_petani_id = cast(UUID, data.get("petani_id", financing.petani_id))
+    merged_planting_id = cast(Optional[UUID], data.get("planting_production_id", financing.planting_production_id))
+    merged_oil_id = cast(Optional[UUID], data.get("oil_production_id", financing.oil_production_id))
     validate_production_refs(db, merged_petani_id, merged_planting_id, merged_oil_id)
 
     if "user_update_id" in data:

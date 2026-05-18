@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Optional
+from typing import Optional, cast
 from uuid import UUID, uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -63,26 +63,40 @@ def _get_wilayah(db: Session, kode: Optional[str], level: str):
 
 
 def validate_land_regions(db: Session, data: dict):
-    provinsi = _get_wilayah(db, data.get("provinsi_kode"), "provinsi")
-    kabupaten = _get_wilayah(db, data.get("kabupaten_kota_kode"), "kabupaten_kota")
-    kecamatan = _get_wilayah(db, data.get("kecamatan_kode"), "kecamatan")
-    desa = _get_wilayah(db, data.get("desa_kelurahan_kode"), "desa_kelurahan")
+    provinsi_kode = cast(Optional[str], data.get("provinsi_kode"))
+    kabupaten_kota_kode = cast(Optional[str], data.get("kabupaten_kota_kode"))
+    kecamatan_kode = cast(Optional[str], data.get("kecamatan_kode"))
+    desa_kelurahan_kode = cast(Optional[str], data.get("desa_kelurahan_kode"))
 
-    if data.get("provinsi_kode") and not provinsi:
+    provinsi = _get_wilayah(db, provinsi_kode, "provinsi")
+    kabupaten = _get_wilayah(db, kabupaten_kota_kode, "kabupaten_kota")
+    kecamatan = _get_wilayah(db, kecamatan_kode, "kecamatan")
+    desa = _get_wilayah(db, desa_kelurahan_kode, "desa_kelurahan")
+
+    if provinsi_kode and not provinsi:
         raise HTTPException(status_code=400, detail="Kode provinsi lahan tidak valid")
-    if data.get("kabupaten_kota_kode") and not kabupaten:
+    if kabupaten_kota_kode and not kabupaten:
         raise HTTPException(status_code=400, detail="Kode kabupaten/kota lahan tidak valid")
-    if data.get("kecamatan_kode") and not kecamatan:
+    if kecamatan_kode and not kecamatan:
         raise HTTPException(status_code=400, detail="Kode kecamatan lahan tidak valid")
-    if data.get("desa_kelurahan_kode") and not desa:
+    if desa_kelurahan_kode and not desa:
         raise HTTPException(status_code=400, detail="Kode desa/kelurahan lahan tidak valid")
 
-    if kabupaten and provinsi and kabupaten.parent_kode != provinsi.kode:
-        raise HTTPException(status_code=400, detail="Kode kabupaten/kota lahan tidak sesuai provinsi")
-    if kecamatan and kabupaten and kecamatan.parent_kode != kabupaten.kode:
-        raise HTTPException(status_code=400, detail="Kode kecamatan lahan tidak sesuai kabupaten/kota")
-    if desa and kecamatan and desa.parent_kode != kecamatan.kode:
-        raise HTTPException(status_code=400, detail="Kode desa/kelurahan lahan tidak sesuai kecamatan")
+    if kabupaten is not None and provinsi is not None:
+        kabupaten_parent_kode = cast(Optional[str], kabupaten.parent_kode)
+        provinsi_kode = cast(Optional[str], provinsi.kode)
+        if kabupaten_parent_kode != provinsi_kode:
+            raise HTTPException(status_code=400, detail="Kode kabupaten/kota lahan tidak sesuai provinsi")
+    if kecamatan is not None and kabupaten is not None:
+        kecamatan_parent_kode = cast(Optional[str], kecamatan.parent_kode)
+        kabupaten_kode = cast(Optional[str], kabupaten.kode)
+        if kecamatan_parent_kode != kabupaten_kode:
+            raise HTTPException(status_code=400, detail="Kode kecamatan lahan tidak sesuai kabupaten/kota")
+    if desa is not None and kecamatan is not None:
+        desa_parent_kode = cast(Optional[str], desa.parent_kode)
+        kecamatan_kode = cast(Optional[str], kecamatan.kode)
+        if desa_parent_kode != kecamatan_kode:
+            raise HTTPException(status_code=400, detail="Kode desa/kelurahan lahan tidak sesuai kecamatan")
 
 
 def normalize_coordinates(coordinates):
@@ -102,7 +116,14 @@ def replace_land_coordinates(db: Session, land: Land, coordinates):
 
 def serialize_land(db: Session, land: Land):
     data = LandSchema.model_validate(land).model_dump()
-    owner = db.query(Farmer).filter(Farmer.id == land.pemilik_id).first()
+    pemilik_id = cast(UUID, land.pemilik_id)
+    foto_path = cast(Optional[str], land.foto_path)
+    provinsi_kode = cast(Optional[str], land.provinsi_kode)
+    kabupaten_kota_kode = cast(Optional[str], land.kabupaten_kota_kode)
+    kecamatan_kode = cast(Optional[str], land.kecamatan_kode)
+    desa_kelurahan_kode = cast(Optional[str], land.desa_kelurahan_kode)
+
+    owner = db.query(Farmer).filter(Farmer.id == pemilik_id).first()
     data["pemilik_nama"] = owner.nama if owner else None
     data["pemilik"] = (
         {
@@ -114,26 +135,33 @@ def serialize_land(db: Session, land: Land):
         if owner
         else None
     )
-    data["foto_url"] = f"/{land.foto_path}" if land.foto_path else None
-    wilayah = {
-        row.kode: row.nama
+    data["foto_url"] = f"/{foto_path}" if foto_path else None
+    wilayah: dict[str, Optional[str]] = {
+        cast(str, row.kode): cast(Optional[str], row.nama)
         for row in db.query(GisWilayah)
         .filter(
             GisWilayah.kode.in_(
                 [
-                    land.provinsi_kode,
-                    land.kabupaten_kota_kode,
-                    land.kecamatan_kode,
-                    land.desa_kelurahan_kode,
+                    provinsi_kode,
+                    kabupaten_kota_kode,
+                    kecamatan_kode,
+                    desa_kelurahan_kode,
                 ]
             )
         )
         .all()
+        if row.kode is not None
     }
-    data["provinsi"] = wilayah.get(land.provinsi_kode)
-    data["kabupaten_kota"] = wilayah.get(land.kabupaten_kota_kode)
-    data["kecamatan"] = wilayah.get(land.kecamatan_kode)
-    data["desa_kelurahan"] = wilayah.get(land.desa_kelurahan_kode)
+
+    def get_wilayah_name(kode: Optional[str]) -> Optional[str]:
+        if kode is None:
+            return None
+        return wilayah.get(kode)
+
+    data["provinsi"] = get_wilayah_name(provinsi_kode)
+    data["kabupaten_kota"] = get_wilayah_name(kabupaten_kota_kode)
+    data["kecamatan"] = get_wilayah_name(kecamatan_kode)
+    data["desa_kelurahan"] = get_wilayah_name(desa_kelurahan_kode)
     return data
 
 
@@ -249,10 +277,10 @@ def update_land(
         validate_land_code_unique(db, data["kode"], land_id=land_id)
 
     merged_regions = {
-        "provinsi_kode": data.get("provinsi_kode", land.provinsi_kode),
-        "kabupaten_kota_kode": data.get("kabupaten_kota_kode", land.kabupaten_kota_kode),
-        "kecamatan_kode": data.get("kecamatan_kode", land.kecamatan_kode),
-        "desa_kelurahan_kode": data.get("desa_kelurahan_kode", land.desa_kelurahan_kode),
+        "provinsi_kode": cast(Optional[str], data.get("provinsi_kode", land.provinsi_kode)),
+        "kabupaten_kota_kode": cast(Optional[str], data.get("kabupaten_kota_kode", land.kabupaten_kota_kode)),
+        "kecamatan_kode": cast(Optional[str], data.get("kecamatan_kode", land.kecamatan_kode)),
+        "desa_kelurahan_kode": cast(Optional[str], data.get("desa_kelurahan_kode", land.desa_kelurahan_kode)),
     }
     validate_land_regions(db, merged_regions)
 
@@ -279,9 +307,10 @@ def upload_land_photo(
 ):
     land = get_land_or_404(db, land_id)
     new_foto_path = save_land_photo(foto)
-    remove_land_photo(land.foto_path)
+    current_foto_path = cast(Optional[str], land.foto_path)
+    remove_land_photo(current_foto_path)
 
-    land.foto_path = new_foto_path
+    setattr(land, "foto_path", new_foto_path)
     db.commit()
     db.refresh(land)
 
@@ -294,8 +323,9 @@ def upload_land_photo(
 @router.delete("/{land_id}/foto")
 def delete_land_photo(land_id: UUID, db: Session = Depends(get_db)):
     land = get_land_or_404(db, land_id)
-    remove_land_photo(land.foto_path)
-    land.foto_path = None
+    current_foto_path = cast(Optional[str], land.foto_path)
+    remove_land_photo(current_foto_path)
+    setattr(land, "foto_path", None)
     db.commit()
     db.refresh(land)
 
@@ -308,7 +338,8 @@ def delete_land_photo(land_id: UUID, db: Session = Depends(get_db)):
 @router.delete("/{land_id}")
 def delete_land(land_id: UUID, db: Session = Depends(get_db)):
     land = get_land_or_404(db, land_id)
-    remove_land_photo(land.foto_path)
+    current_foto_path = cast(Optional[str], land.foto_path)
+    remove_land_photo(current_foto_path)
     db.delete(land)
     db.commit()
     return JSONResponseHandler.success(data=None, message="Data lahan berhasil dihapus")

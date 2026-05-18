@@ -1,4 +1,5 @@
 from logging.config import fileConfig
+from typing import Any, Dict, cast
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -7,6 +8,8 @@ from app.database import DATABASE_URL
 from app.models import Base
 
 config = context.config
+if not DATABASE_URL:
+    raise RuntimeError("DATABASE_URL is not configured")
 config.set_main_option("sqlalchemy.url", DATABASE_URL)
 
 if config.config_file_name is not None:
@@ -28,8 +31,11 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
+    section = config.get_section(config.config_ini_section) or {}
+    configuration = cast(Dict[str, Any], section)
+
     connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )

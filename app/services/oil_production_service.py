@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, cast
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -60,7 +60,8 @@ def validate_land(db: Session, land_id: Optional[UUID], farmer_id: UUID):
     land = db.query(Land).filter(Land.id == land_id).first()
     if not land:
         raise HTTPException(status_code=400, detail="Lahan tidak ditemukan")
-    if land.pemilik_id != farmer_id:
+    land_pemilik_id = cast(UUID, land.pemilik_id)
+    if land_pemilik_id != farmer_id:
         raise HTTPException(status_code=400, detail="Lahan tidak sesuai petani")
     return land
 
@@ -101,11 +102,19 @@ def validate_finished_required_fields(data: dict):
 
 def serialize_oil_production(db: Session, production: OilProduction):
     data = OilProductionSchema.model_validate(production).model_dump()
-    farmer = db.query(Farmer).filter(Farmer.id == production.petani_id).first()
-    land = db.query(Land).filter(Land.id == production.lahan_id).first() if production.lahan_id else None
+    production_petani_id = cast(UUID, production.petani_id)
+    production_lahan_id = cast(Optional[UUID], production.lahan_id)
+    production_user_update_id = cast(Optional[UUID], production.user_update_id)
+
+    farmer = db.query(Farmer).filter(Farmer.id == production_petani_id).first()
+    land = (
+        db.query(Land).filter(Land.id == production_lahan_id).first()
+        if production_lahan_id is not None
+        else None
+    )
     user_update = (
-        db.query(User).filter(User.id == production.user_update_id).first()
-        if production.user_update_id
+        db.query(User).filter(User.id == production_user_update_id).first()
+        if production_user_update_id is not None
         else None
     )
 
