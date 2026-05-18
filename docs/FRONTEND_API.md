@@ -1997,6 +1997,7 @@ quantity                required, angka > 0
 petani_id               required, UUID petani
 planting_production_id  optional, UUID produksi tanam
 oil_production_id       optional, UUID produksi minyak
+paid_by                 optional, nama pihak pembayar
 sub_total               dihitung backend = harga * quantity
 user_update_id          optional, UUID user
 ```
@@ -2047,6 +2048,7 @@ Payload:
   "petani_id": "243b7917-8586-432e-9199-47bcedd8f2f9",
   "planting_production_id": "0dd9c084-4253-46d9-8660-6fa87736b8f2",
   "oil_production_id": null,
+  "paid_by": "Koperasi Mitra",
   "user_update_id": null
 }
 ```
@@ -2114,6 +2116,7 @@ export interface Financing {
   petani_id: string;
   planting_production_id: string | null;
   oil_production_id: string | null;
+  paid_by: string | null;
   sub_total: number;
   user_update_id: string | null;
   produk: FinancingProduct | null;
@@ -2148,6 +2151,7 @@ export interface FinancingCreatePayload {
   petani_id: string;
   planting_production_id?: string | null;
   oil_production_id?: string | null;
+  paid_by?: string | null;
   user_update_id?: string | null;
 }
 
