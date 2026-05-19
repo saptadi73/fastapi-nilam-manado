@@ -11,6 +11,8 @@ class FinancingProduct(Base):
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4, index=True)
     nama = Column(String(150), nullable=False, unique=True, index=True)
+    harga = Column(Float, nullable=False)
+    satuan = Column(String(50), nullable=False)
     deskripsi = Column(Text, nullable=True)
 
 

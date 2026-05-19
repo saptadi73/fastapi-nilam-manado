@@ -10,6 +10,8 @@ from app.schemas.planting_production_schema import PlantingProductionUserSchema
 
 class FinancingProductBase(BaseModel):
     nama: str = Field(..., max_length=150)
+    harga: float = Field(..., ge=0)
+    satuan: str = Field(..., max_length=50)
     deskripsi: Optional[str] = None
 
 
@@ -19,6 +21,8 @@ class FinancingProductCreate(FinancingProductBase):
 
 class FinancingProductUpdate(BaseModel):
     nama: Optional[str] = Field(default=None, max_length=150)
+    harga: Optional[float] = Field(default=None, ge=0)
+    satuan: Optional[str] = Field(default=None, max_length=50)
     deskripsi: Optional[str] = None
 
 

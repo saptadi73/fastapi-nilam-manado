@@ -1929,6 +1929,8 @@ Payload create:
 ```json
 {
   "nama": "Pupuk Organik",
+  "harga": 25000,
+  "satuan": "kg",
   "deskripsi": "Biaya pupuk organik"
 }
 ```
@@ -1942,9 +1944,20 @@ Response:
   "data": {
     "id": "7c0b606e-69cc-4070-8d54-48855f5c0223",
     "nama": "Pupuk Organik",
+    "harga": 25000,
+    "satuan": "kg",
     "deskripsi": "Biaya pupuk organik"
   }
 }
+```
+
+Field produk pembiayaan:
+
+```txt
+nama        required
+harga       required, angka >= 0
+satuan      required
+deskripsi   optional
 ```
 
 Produk pembiayaan yang sudah digunakan transaksi tidak bisa dihapus.
@@ -1968,6 +1981,8 @@ Produk pembiayaan yang sudah digunakan transaksi tidak bisa dihapus.
   "produk": {
     "id": "7c0b606e-69cc-4070-8d54-48855f5c0223",
     "nama": "Pupuk Organik",
+    "harga": 25000,
+    "satuan": "kg",
     "deskripsi": "Biaya pupuk organik"
   },
   "petani": {
@@ -2106,6 +2121,8 @@ Response:
 export interface FinancingProduct {
   id: string;
   nama: string;
+  harga: number;
+  satuan: string;
   deskripsi: string | null;
 }
 
@@ -2301,6 +2318,409 @@ export interface SaleCreatePayload {
 }
 
 export type SaleUpdatePayload = Partial<SaleCreatePayload>;
+```
+
+## Dashboard
+
+Endpoint dashboard menyediakan data agregat untuk grafik dan tabel performa. Semua response tetap memakai wrapper standar:
+
+```json
+{
+  "status": "success",
+  "message": "Pesan response",
+  "data": []
+}
+```
+
+Filter umum:
+
+```txt
+tanggal_mulai  optional, format YYYY-MM-DD
+tanggal_akhir  optional, format YYYY-MM-DD
+petani_id      optional, UUID petani untuk endpoint yang mendukung filter petani
+status         optional, untuk endpoint produksi: rencana | berjalan | selesai
+```
+
+Contoh pemakaian filter tanggal:
+
+```txt
+GET /dashboard/sales/monthly?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Catatan perhitungan:
+
+```txt
+total_penjualan  = sum sales.sub_total
+total_expense    = sum financings.sub_total
+net_profit       = total_penjualan - total_expense
+bulan            = format YYYY-MM
+```
+
+### Report Penjualan Bulan ke Bulan
+
+```txt
+GET /dashboard/sales/monthly
+GET /dashboard/sales/monthly?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+GET /dashboard/sales/monthly?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "total_penjualan": 6600000,
+    "jumlah_transaksi": 3
+  }
+]
+```
+
+### Report Expense Bulan ke Bulan
+
+```txt
+GET /dashboard/expenses/monthly
+GET /dashboard/expenses/monthly?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+GET /dashboard/expenses/monthly?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "total_expense": 1200000,
+    "jumlah_transaksi": 4
+  }
+]
+```
+
+### Report Produksi Tanam Bulan ke Bulan
+
+```txt
+GET /dashboard/planting-productions/monthly
+GET /dashboard/planting-productions/monthly?status=selesai
+GET /dashboard/planting-productions/monthly?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+```
+
+Agregasi memakai `tanggal_mulai` produksi tanam.
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "jumlah_produksi": 2,
+    "total_luas_garapan": 2.5,
+    "total_jumlah_batang": 12000,
+    "total_rencana_hasil_basah": 1500,
+    "total_aktual_hasil_basah": 1450,
+    "total_aktual_hasil_kering": 420
+  }
+]
+```
+
+### Report Produksi Minyak Bulan ke Bulan
+
+```txt
+GET /dashboard/oil-productions/monthly
+GET /dashboard/oil-productions/monthly?status=selesai
+GET /dashboard/oil-productions/monthly?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+```
+
+Agregasi memakai `tanggal_mulai` produksi minyak.
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "jumlah_produksi": 2,
+    "total_berat_kering_bahan": 1000,
+    "total_rencana_hasil_minyak": 24,
+    "total_aktual_hasil_minyak": 25,
+    "redaman_rata_rata": 0.025
+  }
+]
+```
+
+### Total Penjualan Berdasarkan Petani
+
+```txt
+GET /dashboard/sales/by-farmer
+GET /dashboard/sales/by-farmer?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "petani": {
+      "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+      "nama": "Budi Santoso",
+      "nik": "1234567890123456",
+      "hp": "08123456789"
+    },
+    "total_penjualan": 6600000,
+    "jumlah_transaksi": 3
+  }
+]
+```
+
+### Total Penjualan Berdasarkan Kabupaten Petani
+
+```txt
+GET /dashboard/sales/by-farmer-regency
+GET /dashboard/sales/by-farmer-regency?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Endpoint ini cocok untuk pie chart distribusi penjualan berdasarkan `kabupaten_kota_kode` dari data petani penjual. Field `persentase` dihitung dari total penjualan seluruh kabupaten pada filter yang sama.
+
+Response `data`:
+
+```json
+[
+  {
+    "kabupaten_kota_kode": "7171",
+    "kabupaten_kota": "KOTA MANADO",
+    "total_penjualan": 6600000,
+    "jumlah_transaksi": 3,
+    "jumlah_petani": 2,
+    "persentase": 62.5
+  }
+]
+```
+
+### Penjualan Bulan ke Bulan Berdasarkan Petani
+
+```txt
+GET /dashboard/sales/monthly-by-farmer
+GET /dashboard/sales/monthly-by-farmer?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+GET /dashboard/sales/monthly-by-farmer?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "petani": {
+      "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+      "nama": "Budi Santoso",
+      "nik": "1234567890123456",
+      "hp": "08123456789"
+    },
+    "total_penjualan": 6600000,
+    "jumlah_transaksi": 3
+  }
+]
+```
+
+### Expense Bulan ke Bulan Berdasarkan Petani
+
+```txt
+GET /dashboard/expenses/monthly-by-farmer
+GET /dashboard/expenses/monthly-by-farmer?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+GET /dashboard/expenses/monthly-by-farmer?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "petani": {
+      "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+      "nama": "Budi Santoso",
+      "nik": "1234567890123456",
+      "hp": "08123456789"
+    },
+    "total_expense": 1200000,
+    "jumlah_transaksi": 4
+  }
+]
+```
+
+### Penjualan vs Expense Bulan ke Bulan
+
+```txt
+GET /dashboard/sales-vs-expenses/monthly
+GET /dashboard/sales-vs-expenses/monthly?petani_id=243b7917-8586-432e-9199-47bcedd8f2f9
+GET /dashboard/sales-vs-expenses/monthly?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "bulan": "2026-05",
+    "tahun": 2026,
+    "bulan_ke": 5,
+    "total_penjualan": 6600000,
+    "total_expense": 1200000,
+    "net_profit": 5400000
+  }
+]
+```
+
+### Penjualan vs Expense Berdasarkan Petani
+
+```txt
+GET /dashboard/sales-vs-expenses/by-farmer
+GET /dashboard/sales-vs-expenses/by-farmer?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Response `data`:
+
+```json
+[
+  {
+    "petani": {
+      "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+      "nama": "Budi Santoso",
+      "nik": "1234567890123456",
+      "hp": "08123456789"
+    },
+    "total_penjualan": 6600000,
+    "total_expense": 1200000,
+    "net_profit": 5400000
+  }
+]
+```
+
+### Net Profit Performance Petani
+
+```txt
+GET /dashboard/farmer-net-profit
+GET /dashboard/farmer-net-profit?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+```
+
+Endpoint ini mengembalikan format yang sama dengan `/dashboard/sales-vs-expenses/by-farmer`, diurutkan dari `net_profit` terbesar ke terkecil.
+
+Response `data`:
+
+```json
+[
+  {
+    "petani": {
+      "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+      "nama": "Budi Santoso",
+      "nik": "1234567890123456",
+      "hp": "08123456789"
+    },
+    "total_penjualan": 6600000,
+    "total_expense": 1200000,
+    "net_profit": 5400000
+  }
+]
+```
+
+### TypeScript Dashboard
+
+```ts
+export interface DashboardFarmer {
+  id: string;
+  nama: string;
+  nik: string;
+  hp: string | null;
+}
+
+export interface MonthlySalesReport {
+  bulan: string;
+  tahun: number;
+  bulan_ke: number;
+  total_penjualan: number;
+  jumlah_transaksi: number;
+}
+
+export interface MonthlyExpenseReport {
+  bulan: string;
+  tahun: number;
+  bulan_ke: number;
+  total_expense: number;
+  jumlah_transaksi: number;
+}
+
+export interface MonthlyPlantingProductionReport {
+  bulan: string;
+  tahun: number;
+  bulan_ke: number;
+  jumlah_produksi: number;
+  total_luas_garapan: number;
+  total_jumlah_batang: number;
+  total_rencana_hasil_basah: number;
+  total_aktual_hasil_basah: number;
+  total_aktual_hasil_kering: number;
+}
+
+export interface MonthlyOilProductionReport {
+  bulan: string;
+  tahun: number;
+  bulan_ke: number;
+  jumlah_produksi: number;
+  total_berat_kering_bahan: number;
+  total_rencana_hasil_minyak: number;
+  total_aktual_hasil_minyak: number;
+  redaman_rata_rata: number | null;
+}
+
+export interface FarmerSalesReport {
+  petani: DashboardFarmer | null;
+  total_penjualan: number;
+  jumlah_transaksi: number;
+}
+
+export interface RegencySalesReport {
+  kabupaten_kota_kode: string;
+  kabupaten_kota: string | null;
+  total_penjualan: number;
+  jumlah_transaksi: number;
+  jumlah_petani: number;
+  persentase: number;
+}
+
+export interface MonthlyFarmerSalesReport extends MonthlySalesReport {
+  petani: DashboardFarmer | null;
+}
+
+export interface MonthlyFarmerExpenseReport extends MonthlyExpenseReport {
+  petani: DashboardFarmer | null;
+}
+
+export interface SalesVsExpenseReport {
+  total_penjualan: number;
+  total_expense: number;
+  net_profit: number;
+}
+
+export interface MonthlySalesVsExpenseReport extends SalesVsExpenseReport {
+  bulan: string;
+  tahun: number;
+  bulan_ke: number;
+}
+
+export interface FarmerNetProfitReport extends SalesVsExpenseReport {
+  petani: DashboardFarmer | null;
+}
 ```
 
 ## Partner

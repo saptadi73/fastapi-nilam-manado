@@ -40,6 +40,7 @@ def read_root():
 
 # Import dan include router autentikasi
 from app.services.auth_service import router as auth_router
+from app.services.dashboard_service import router as dashboard_router
 from app.services.farmer_service import router as farmer_router
 from app.services.financing_service import product_router as financing_product_router
 from app.services.financing_service import router as financing_router
@@ -56,6 +57,7 @@ from app.services.sales_service import router as sales_router
 from app.services.wilayah_service import router as wilayah_router
 
 app.include_router(auth_router)
+app.include_router(dashboard_router)
 app.include_router(wilayah_router)
 app.include_router(farmer_router)
 app.include_router(partner_router)
