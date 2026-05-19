@@ -12,3 +12,9 @@ class UserSchema(BaseModel):
     name: str
     email: str
     password: str = None
+
+
+class UserRefSchema(BaseModel):
+    id: UUID
+    name: Optional[str] = None
+    email: Optional[str] = None

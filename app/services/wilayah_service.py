@@ -37,7 +37,11 @@ def get_provinsi(
     db: Session = Depends(get_db),
 ):
     data = serialize_wilayah(list_wilayah(db, "provinsi", search=search))
-    return JSONResponseHandler.success(data=data, message="Data provinsi berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="provinsi",
+        message="Data provinsi berhasil diambil",
+    )
 
 
 @router.get("/kabupaten-kota")
@@ -49,7 +53,11 @@ def get_kabupaten_kota(
     data = serialize_wilayah(
         list_wilayah(db, "kabupaten_kota", parent_kode=provinsi_kode, search=search)
     )
-    return JSONResponseHandler.success(data=data, message="Data kabupaten/kota berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="kabupaten/kota",
+        message="Data kabupaten/kota berhasil diambil",
+    )
 
 
 @router.get("/kecamatan")
@@ -61,7 +69,11 @@ def get_kecamatan(
     data = serialize_wilayah(
         list_wilayah(db, "kecamatan", parent_kode=kabupaten_kota_kode, search=search)
     )
-    return JSONResponseHandler.success(data=data, message="Data kecamatan berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="kecamatan",
+        message="Data kecamatan berhasil diambil",
+    )
 
 
 @router.get("/desa-kelurahan")
@@ -73,4 +85,8 @@ def get_desa_kelurahan(
     data = serialize_wilayah(
         list_wilayah(db, "desa_kelurahan", parent_kode=kecamatan_kode, search=search)
     )
-    return JSONResponseHandler.success(data=data, message="Data desa/kelurahan berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="desa/kelurahan",
+        message="Data desa/kelurahan berhasil diambil",
+    )

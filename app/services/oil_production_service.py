@@ -171,7 +171,11 @@ def list_oil_productions(
 
     productions = query.order_by(OilProduction.tanggal_mulai.desc()).all()
     data = [serialize_oil_production(db, production) for production in productions]
-    return JSONResponseHandler.success(data=data, message="Data produksi minyak berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="produksi minyak",
+        message="Data produksi minyak berhasil diambil",
+    )
 
 
 @router.get("/{production_id}")

@@ -8,9 +8,11 @@ from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models.farmer import Farmer
 from app.models.land import Land, LandCoordinate
+from app.models.user import User
 from app.models.wilayah import GisWilayah
 from app.schemas.land_schema import LandCreate, LandSchema, LandUpdate
 from app.supports.json_response import JSONResponseHandler
+from app.supports.user_update import serialize_user_ref, validate_user_update
 
 router = APIRouter(prefix="/lands", tags=["lands"])
 
@@ -122,6 +124,7 @@ def serialize_land(db: Session, land: Land):
     kabupaten_kota_kode = cast(Optional[str], land.kabupaten_kota_kode)
     kecamatan_kode = cast(Optional[str], land.kecamatan_kode)
     desa_kelurahan_kode = cast(Optional[str], land.desa_kelurahan_kode)
+    user_update_id = cast(Optional[UUID], land.user_update_id)
 
     owner = db.query(Farmer).filter(Farmer.id == pemilik_id).first()
     data["pemilik_nama"] = owner.nama if owner else None
@@ -162,6 +165,12 @@ def serialize_land(db: Session, land: Land):
     data["kabupaten_kota"] = get_wilayah_name(kabupaten_kota_kode)
     data["kecamatan"] = get_wilayah_name(kecamatan_kode)
     data["desa_kelurahan"] = get_wilayah_name(desa_kelurahan_kode)
+    user_update = (
+        db.query(User).filter(User.id == user_update_id).first()
+        if user_update_id is not None
+        else None
+    )
+    data["user_update"] = serialize_user_ref(user_update)
     return data
 
 
@@ -227,7 +236,11 @@ def list_lands(
 
     lands = query.order_by(Land.kode.asc()).all()
     data = [serialize_land(db, land) for land in lands]
-    return JSONResponseHandler.success(data=data, message="Data lahan berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="lahan",
+        message="Data lahan berhasil diambil",
+    )
 
 
 @router.get("/{land_id}")
@@ -243,6 +256,7 @@ def create_land(payload: LandCreate, db: Session = Depends(get_db)):
     validate_farmer_exists(db, data["pemilik_id"])
     validate_land_code_unique(db, data["kode"])
     validate_land_regions(db, data)
+    validate_user_update(db, data.get("user_update_id"))
 
     land = Land(**data)
     db.add(land)
@@ -276,6 +290,9 @@ def update_land(
     if "kode" in data:
         validate_land_code_unique(db, data["kode"], land_id=land_id)
 
+    if "user_update_id" in data:
+        validate_user_update(db, data["user_update_id"])
+
     merged_regions = {
         "provinsi_kode": cast(Optional[str], data.get("provinsi_kode", land.provinsi_kode)),
         "kabupaten_kota_kode": cast(Optional[str], data.get("kabupaten_kota_kode", land.kabupaten_kota_kode)),
@@ -303,6 +320,7 @@ def update_land(
 def upload_land_photo(
     land_id: UUID,
     foto: UploadFile = File(...),
+    user_update_id: Optional[UUID] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     land = get_land_or_404(db, land_id)
@@ -310,7 +328,10 @@ def upload_land_photo(
     current_foto_path = cast(Optional[str], land.foto_path)
     remove_land_photo(current_foto_path)
 
+    validate_user_update(db, user_update_id)
     setattr(land, "foto_path", new_foto_path)
+    if user_update_id is not None:
+        setattr(land, "user_update_id", user_update_id)
     db.commit()
     db.refresh(land)
 
@@ -321,11 +342,18 @@ def upload_land_photo(
 
 
 @router.delete("/{land_id}/foto")
-def delete_land_photo(land_id: UUID, db: Session = Depends(get_db)):
+def delete_land_photo(
+    land_id: UUID,
+    user_update_id: Optional[UUID] = Query(default=None),
+    db: Session = Depends(get_db),
+):
     land = get_land_or_404(db, land_id)
     current_foto_path = cast(Optional[str], land.foto_path)
     remove_land_photo(current_foto_path)
+    validate_user_update(db, user_update_id)
     setattr(land, "foto_path", None)
+    if user_update_id is not None:
+        setattr(land, "user_update_id", user_update_id)
     db.commit()
     db.refresh(land)
 

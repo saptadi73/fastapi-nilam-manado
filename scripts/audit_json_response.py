@@ -66,7 +66,7 @@ class RouteAuditVisitor(ast.NodeVisitor):
             isinstance(func, ast.Attribute)
             and isinstance(func.value, ast.Name)
             and func.value.id == "JSONResponseHandler"
-            and func.attr in {"success", "error"}
+            and func.attr in {"success", "success_list", "success_items", "error"}
         )
 
 

@@ -99,8 +99,10 @@ def monthly_sales_report(
     db: Session = Depends(get_db),
 ):
     rows = sale_monthly_query(db, tanggal_mulai, tanggal_akhir, petani_id=petani_id)
-    return JSONResponseHandler.success(
-        data=serialize_monthly_amount(rows, "total_penjualan"),
+    data = serialize_monthly_amount(rows, "total_penjualan")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="laporan penjualan bulan ke bulan",
         message="Report penjualan bulan ke bulan berhasil diambil",
     )
 
@@ -113,8 +115,10 @@ def monthly_expense_report(
     db: Session = Depends(get_db),
 ):
     rows = expense_monthly_query(db, tanggal_mulai, tanggal_akhir, petani_id=petani_id)
-    return JSONResponseHandler.success(
-        data=serialize_monthly_amount(rows, "total_expense"),
+    data = serialize_monthly_amount(rows, "total_expense")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="laporan expense bulan ke bulan",
         message="Report expense bulan ke bulan berhasil diambil",
     )
 
@@ -162,7 +166,11 @@ def monthly_planting_production_report(
                 "total_aktual_hasil_kering": float(row.total_aktual_hasil_kering or 0),
             }
         )
-    return JSONResponseHandler.success(data=data, message="Report produksi tanam bulan ke bulan berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="laporan produksi tanam bulan ke bulan",
+        message="Report produksi tanam bulan ke bulan berhasil diambil",
+    )
 
 
 @router.get("/oil-productions/monthly")
@@ -211,7 +219,11 @@ def monthly_oil_production_report(
                 ),
             }
         )
-    return JSONResponseHandler.success(data=data, message="Report produksi minyak bulan ke bulan berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="laporan produksi minyak bulan ke bulan",
+        message="Report produksi minyak bulan ke bulan berhasil diambil",
+    )
 
 
 @router.get("/sales/by-farmer")
@@ -241,7 +253,11 @@ def total_sales_by_farmer(
         }
         for row in rows
     ]
-    return JSONResponseHandler.success(data=data, message="Total penjualan berdasarkan petani berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="total penjualan berdasarkan petani",
+        message="Total penjualan berdasarkan petani berhasil diambil",
+    )
 
 
 @router.get("/sales/by-farmer-regency")
@@ -281,8 +297,9 @@ def total_sales_by_farmer_regency(
                 "persentase": (total_penjualan / grand_total * 100) if grand_total else 0,
             }
         )
-    return JSONResponseHandler.success(
+    return JSONResponseHandler.success_list(
         data=data,
+        label="total penjualan berdasarkan wilayah kabupaten petani",
         message="Total penjualan berdasarkan wilayah kabupaten petani berhasil diambil",
     )
 
@@ -323,7 +340,11 @@ def monthly_sales_by_farmer(
         }
         for row in rows
     ]
-    return JSONResponseHandler.success(data=data, message="Penjualan bulan ke bulan berdasarkan petani berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="penjualan bulan ke bulan berdasarkan petani",
+        message="Penjualan bulan ke bulan berdasarkan petani berhasil diambil",
+    )
 
 
 @router.get("/expenses/monthly-by-farmer")
@@ -362,7 +383,11 @@ def monthly_expense_by_farmer(
         }
         for row in rows
     ]
-    return JSONResponseHandler.success(data=data, message="Expense bulan ke bulan berdasarkan petani berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="expense bulan ke bulan berdasarkan petani",
+        message="Expense bulan ke bulan berdasarkan petani berhasil diambil",
+    )
 
 
 @router.get("/sales-vs-expenses/monthly")
@@ -404,7 +429,11 @@ def monthly_sales_vs_expenses(
         item["net_profit"] = item["total_penjualan"] - item["total_expense"]
         data.append(item)
 
-    return JSONResponseHandler.success(data=data, message="Penjualan vs expense bulan ke bulan berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="penjualan vs expense bulan ke bulan",
+        message="Penjualan vs expense bulan ke bulan berhasil diambil",
+    )
 
 
 @router.get("/sales-vs-expenses/by-farmer")
@@ -452,7 +481,11 @@ def sales_vs_expenses_by_farmer(
             }
         )
     data.sort(key=lambda item: item["net_profit"], reverse=True)
-    return JSONResponseHandler.success(data=data, message="Penjualan vs expense berdasarkan petani berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="penjualan vs expense berdasarkan petani",
+        message="Penjualan vs expense berdasarkan petani berhasil diambil",
+    )
 
 
 @router.get("/farmer-net-profit")
@@ -500,7 +533,8 @@ def farmer_net_profit_performance(
             }
         )
     data.sort(key=lambda item: item["net_profit"], reverse=True)
-    return JSONResponseHandler.success(
+    return JSONResponseHandler.success_list(
         data=data,
+        label="net profit performance petani",
         message="Net profit performance petani berhasil diambil",
     )

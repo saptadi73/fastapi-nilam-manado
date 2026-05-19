@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.partner import Partner
+from app.models.user import User
 from app.models.wilayah import GisWilayah
 from app.schemas.partner_schema import PartnerCreate, PartnerSchema, PartnerUpdate
 from app.supports.json_response import JSONResponseHandler
+from app.supports.user_update import serialize_user_ref, validate_user_update
 
 router = APIRouter(prefix="/partners", tags=["partners"])
 
@@ -48,6 +50,7 @@ def serialize_partner(db: Session, partner: Partner):
     provinsi_kode = cast(Optional[str], partner.provinsi_kode)
     kabupaten_kota_kode = cast(Optional[str], partner.kabupaten_kota_kode)
     kecamatan_kode = cast(Optional[str], partner.kecamatan_kode)
+    user_update_id = cast(Optional[UUID], partner.user_update_id)
 
     wilayah: dict[str, Optional[str]] = {
         cast(str, row.kode): cast(Optional[str], row.nama)
@@ -74,6 +77,12 @@ def serialize_partner(db: Session, partner: Partner):
     data["provinsi"] = get_wilayah_name(provinsi_kode)
     data["kabupaten_kota"] = get_wilayah_name(kabupaten_kota_kode)
     data["kecamatan"] = get_wilayah_name(kecamatan_kode)
+    user_update = (
+        db.query(User).filter(User.id == user_update_id).first()
+        if user_update_id is not None
+        else None
+    )
+    data["user_update"] = serialize_user_ref(user_update)
     return data
 
 
@@ -108,7 +117,11 @@ def list_partners(
 
     partners = query.order_by(Partner.nama.asc()).all()
     data = [serialize_partner(db, partner) for partner in partners]
-    return JSONResponseHandler.success(data=data, message="Data partner berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="partner",
+        message="Data partner berhasil diambil",
+    )
 
 
 @router.get("/{partner_id}")
@@ -121,6 +134,7 @@ def get_partner(partner_id: UUID, db: Session = Depends(get_db)):
 def create_partner(payload: PartnerCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
     validate_partner_wilayah(db, data)
+    validate_user_update(db, data.get("user_update_id"))
 
     partner = Partner(**data)
     db.add(partner)
@@ -148,6 +162,9 @@ def update_partner(
         "kecamatan_kode": data.get("kecamatan_kode", partner.kecamatan_kode),
     }
     validate_partner_wilayah(db, merged)
+
+    if "user_update_id" in data:
+        validate_user_update(db, data["user_update_id"])
 
     for key, value in data.items():
         setattr(partner, key, value)

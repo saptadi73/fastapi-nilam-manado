@@ -132,7 +132,11 @@ def list_planting_production_notes(
 ):
     notes = list_notes(db, PlantingProductionNote, kode_produksi)
     data = [serialize_note(db, note) for note in notes]
-    return JSONResponseHandler.success(data=data, message="Data catatan produksi tanam berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="catatan produksi tanam",
+        message="Data catatan produksi tanam berhasil diambil",
+    )
 
 
 @planting_note_router.get("/{note_id}")
@@ -174,7 +178,11 @@ def list_oil_production_notes(
 ):
     notes = list_notes(db, OilProductionNote, kode_produksi)
     data = [serialize_note(db, note) for note in notes]
-    return JSONResponseHandler.success(data=data, message="Data catatan produksi minyak berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="catatan produksi minyak",
+        message="Data catatan produksi minyak berhasil diambil",
+    )
 
 
 @oil_note_router.get("/{note_id}")

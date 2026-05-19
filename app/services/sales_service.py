@@ -9,6 +9,7 @@ from app.database import get_db
 from app.models.farmer import Farmer
 from app.models.partner import Partner
 from app.models.sales import Sale, SalesProduct
+from app.models.user import User
 from app.schemas.sales_schema import (
     SaleCreate,
     SaleSchema,
@@ -18,6 +19,7 @@ from app.schemas.sales_schema import (
     SaleUpdate,
 )
 from app.supports.json_response import JSONResponseHandler
+from app.supports.user_update import serialize_user_ref, validate_user_update
 
 product_router = APIRouter(prefix="/sales-products", tags=["sales-products"])
 router = APIRouter(prefix="/sales", tags=["sales"])
@@ -74,7 +76,8 @@ def get_sale_or_404(db: Session, sale_id: UUID):
 
 
 def serialize_sales_product(product: SalesProduct):
-    return SalesProductSchema.model_validate(product).model_dump()
+    data = SalesProductSchema.model_validate(product).model_dump()
+    return data
 
 
 def serialize_sale(db: Session, sale: Sale):
@@ -82,12 +85,18 @@ def serialize_sale(db: Session, sale: Sale):
     sale_product_id = cast(UUID, sale.produk_penjualan_id)
     sale_seller_id = cast(UUID, sale.penjual_id)
     sale_buyer_id = cast(UUID, sale.pembeli_id)
+    sale_user_update_id = cast(Optional[UUID], sale.user_update_id)
 
     product = db.query(SalesProduct).filter(SalesProduct.id == sale_product_id).first()
     seller = db.query(Farmer).filter(Farmer.id == sale_seller_id).first()
     buyer = db.query(Partner).filter(Partner.id == sale_buyer_id).first()
+    user_update = (
+        db.query(User).filter(User.id == sale_user_update_id).first()
+        if sale_user_update_id is not None
+        else None
+    )
 
-    data["produk_penjualan"] = serialize_sales_product(product) if product else None
+    data["produk_penjualan"] = serialize_sales_product_with_user(db, product) if product else None
     data["penjual"] = (
         {"id": seller.id, "nama": seller.nama, "nik": seller.nik, "hp": seller.hp}
         if seller
@@ -104,6 +113,19 @@ def serialize_sale(db: Session, sale: Sale):
         if buyer
         else None
     )
+    data["user_update"] = serialize_user_ref(user_update)
+    return data
+
+
+def serialize_sales_product_with_user(db: Session, product: SalesProduct):
+    data = serialize_sales_product(product)
+    product_user_update_id = cast(Optional[UUID], product.user_update_id)
+    user_update = (
+        db.query(User).filter(User.id == product_user_update_id).first()
+        if product_user_update_id is not None
+        else None
+    )
+    data["user_update"] = serialize_user_ref(user_update)
     return data
 
 
@@ -119,8 +141,10 @@ def list_sales_products(
     if jenis:
         query = query.filter(SalesProduct.jenis == normalize_product_type(jenis))
     products = query.order_by(SalesProduct.nama.asc()).all()
-    return JSONResponseHandler.success(
-        data=[serialize_sales_product(product) for product in products],
+    data = [serialize_sales_product_with_user(db, product) for product in products]
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="produk penjualan",
         message="Data produk penjualan berhasil diambil",
     )
 
@@ -129,13 +153,14 @@ def list_sales_products(
 def create_sales_product(payload: SalesProductCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
     data["jenis"] = normalize_product_type(data["jenis"])
+    validate_user_update(db, data.get("user_update_id"))
     validate_sales_product_name_unique(db, data["nama"])
     product = SalesProduct(**data)
     db.add(product)
     db.commit()
     db.refresh(product)
     return JSONResponseHandler.success(
-        data=serialize_sales_product(product),
+        data=serialize_sales_product_with_user(db, product),
         message="Data produk penjualan berhasil dibuat",
         status_code=status.HTTP_201_CREATED,
     )
@@ -144,7 +169,7 @@ def create_sales_product(payload: SalesProductCreate, db: Session = Depends(get_
 @product_router.get("/{product_id}")
 def get_sales_product(product_id: UUID, db: Session = Depends(get_db)):
     return JSONResponseHandler.success(
-        data=serialize_sales_product(get_sales_product_or_404(db, product_id)),
+        data=serialize_sales_product_with_user(db, get_sales_product_or_404(db, product_id)),
         message="Data produk penjualan berhasil diambil",
     )
 
@@ -161,12 +186,14 @@ def update_sales_product(
         data["jenis"] = normalize_product_type(data["jenis"])
     if "nama" in data:
         validate_sales_product_name_unique(db, data["nama"], product_id=product_id)
+    if "user_update_id" in data:
+        validate_user_update(db, data["user_update_id"])
     for key, value in data.items():
         setattr(product, key, value)
     db.commit()
     db.refresh(product)
     return JSONResponseHandler.success(
-        data=serialize_sales_product(product),
+        data=serialize_sales_product_with_user(db, product),
         message="Data produk penjualan berhasil diperbarui",
     )
 
@@ -210,8 +237,10 @@ def list_sales(
     sales = query.order_by(Sale.tanggal.desc()).all()
     data = [serialize_sale(db, sale) for sale in sales]
     total = sum(item["sub_total"] for item in data)
-    return JSONResponseHandler.success(
+    return JSONResponseHandler.success_items(
         data={"items": data, "total_sub_total": total},
+        items=data,
+        label="transaksi penjualan",
         message="Data transaksi penjualan berhasil diambil",
     )
 
@@ -230,6 +259,7 @@ def create_sale(payload: SaleCreate, db: Session = Depends(get_db)):
     get_sales_product_or_404(db, data["produk_penjualan_id"])
     validate_farmer_exists(db, data["penjual_id"])
     validate_partner_exists(db, data["pembeli_id"])
+    validate_user_update(db, data.get("user_update_id"))
     calculate_sub_total(data)
 
     sale = Sale(**data)
@@ -260,6 +290,9 @@ def update_sale(
 
     if "pembeli_id" in data:
         validate_partner_exists(db, data["pembeli_id"])
+
+    if "user_update_id" in data:
+        validate_user_update(db, data["user_update_id"])
 
     merged = {
         "harga": data.get("harga", sale.harga),

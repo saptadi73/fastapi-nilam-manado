@@ -117,8 +117,20 @@ def get_financing_or_404(db: Session, financing_id: UUID):
     return financing
 
 
-def serialize_product(product: FinancingProduct):
-    return FinancingProductSchema.model_validate(product).model_dump()
+def serialize_product(db: Session, product: FinancingProduct):
+    data = FinancingProductSchema.model_validate(product).model_dump()
+    product_user_update_id = cast(Optional[UUID], product.user_update_id)
+    user_update = (
+        db.query(User).filter(User.id == product_user_update_id).first()
+        if product_user_update_id is not None
+        else None
+    )
+    data["user_update"] = (
+        {"id": user_update.id, "name": user_update.name, "email": user_update.email}
+        if user_update
+        else None
+    )
+    return data
 
 
 def serialize_financing(db: Session, financing: Financing):
@@ -153,7 +165,7 @@ def serialize_financing(db: Session, financing: Financing):
         else None
     )
 
-    data["produk"] = serialize_product(product) if product else None
+    data["produk"] = serialize_product(db, product) if product else None
     data["petani"] = (
         {"id": farmer.id, "nama": farmer.nama, "nik": farmer.nik, "hp": farmer.hp}
         if farmer
@@ -184,8 +196,10 @@ def list_financing_products(search: Optional[str] = Query(default=None), db: Ses
     if search:
         query = query.filter(FinancingProduct.nama.ilike(f"%{search}%"))
     products = query.order_by(FinancingProduct.nama.asc()).all()
-    return JSONResponseHandler.success(
-        data=[serialize_product(product) for product in products],
+    data = [serialize_product(db, product) for product in products]
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="produk pembiayaan",
         message="Data produk pembiayaan berhasil diambil",
     )
 
@@ -193,13 +207,14 @@ def list_financing_products(search: Optional[str] = Query(default=None), db: Ses
 @product_router.post("", status_code=status.HTTP_201_CREATED)
 def create_financing_product(payload: FinancingProductCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
+    validate_user_update(db, data.get("user_update_id"))
     validate_product_name_unique(db, data["nama"])
     product = FinancingProduct(**data)
     db.add(product)
     db.commit()
     db.refresh(product)
     return JSONResponseHandler.success(
-        data=serialize_product(product),
+        data=serialize_product(db, product),
         message="Data produk pembiayaan berhasil dibuat",
         status_code=status.HTTP_201_CREATED,
     )
@@ -208,7 +223,7 @@ def create_financing_product(payload: FinancingProductCreate, db: Session = Depe
 @product_router.get("/{product_id}")
 def get_financing_product(product_id: UUID, db: Session = Depends(get_db)):
     return JSONResponseHandler.success(
-        data=serialize_product(get_product_or_404(db, product_id)),
+        data=serialize_product(db, get_product_or_404(db, product_id)),
         message="Data produk pembiayaan berhasil diambil",
     )
 
@@ -223,11 +238,13 @@ def update_financing_product(
     data = payload.model_dump(exclude_unset=True)
     if "nama" in data:
         validate_product_name_unique(db, data["nama"], product_id=product_id)
+    if "user_update_id" in data:
+        validate_user_update(db, data["user_update_id"])
     for key, value in data.items():
         setattr(product, key, value)
     db.commit()
     db.refresh(product)
-    return JSONResponseHandler.success(data=serialize_product(product), message="Data produk pembiayaan berhasil diperbarui")
+    return JSONResponseHandler.success(data=serialize_product(db, product), message="Data produk pembiayaan berhasil diperbarui")
 
 
 @product_router.delete("/{product_id}")
@@ -275,8 +292,10 @@ def list_financings(
     financings = query.order_by(Financing.tanggal.desc()).all()
     data = [serialize_financing(db, financing) for financing in financings]
     total = sum(item["sub_total"] for item in data)
-    return JSONResponseHandler.success(
+    return JSONResponseHandler.success_items(
         data={"items": data, "total_sub_total": total},
+        items=data,
+        label="pembiayaan",
         message="Data pembiayaan berhasil diambil",
     )
 

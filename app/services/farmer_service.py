@@ -2,14 +2,16 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from typing import Optional, cast
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models.farmer import Farmer
+from app.models.user import User
 from app.models.wilayah import GisWilayah
 from app.schemas.farmer_schema import FarmerCreate, FarmerSchema, FarmerUpdate
 from app.supports.json_response import JSONResponseHandler
+from app.supports.user_update import serialize_user_ref, validate_user_update
 
 router = APIRouter(prefix="/farmers", tags=["farmers"])
 
@@ -69,6 +71,7 @@ def serialize_farmer(db: Session, farmer: Farmer):
     kecamatan_kode = cast(Optional[str], farmer.kecamatan_kode)
     desa_kelurahan_kode = cast(Optional[str], farmer.desa_kelurahan_kode)
     foto_path = cast(Optional[str], farmer.foto_path)
+    user_update_id = cast(Optional[UUID], farmer.user_update_id)
 
     wilayah: dict[str, Optional[str]] = {
         cast(str, row.kode): cast(Optional[str], row.nama)
@@ -98,6 +101,12 @@ def serialize_farmer(db: Session, farmer: Farmer):
     data["kecamatan"] = get_wilayah_name(kecamatan_kode)
     data["desa_kelurahan"] = get_wilayah_name(desa_kelurahan_kode)
     data["foto_url"] = f"/{foto_path}" if foto_path else None
+    user_update = (
+        db.query(User).filter(User.id == user_update_id).first()
+        if user_update_id is not None
+        else None
+    )
+    data["user_update"] = serialize_user_ref(user_update)
     return data
 
 
@@ -151,7 +160,11 @@ def list_farmers(
 
     farmers = query.order_by(Farmer.nama.asc()).all()
     data = [serialize_farmer(db, farmer) for farmer in farmers]
-    return JSONResponseHandler.success(data=data, message="Data petani berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="petani",
+        message="Data petani berhasil diambil",
+    )
 
 
 @router.get("/{farmer_id}")
@@ -164,10 +177,59 @@ def get_farmer(farmer_id: UUID, db: Session = Depends(get_db)):
 def create_farmer(payload: FarmerCreate, db: Session = Depends(get_db)):
     data = payload.model_dump()
     validate_farmer_wilayah(db, data)
+    validate_user_update(db, data.get("user_update_id"))
 
     existing = db.query(Farmer).filter(Farmer.nik == data["nik"]).first()
     if existing:
         raise HTTPException(status_code=400, detail="NIK petani sudah terdaftar")
+
+    farmer = Farmer(**data)
+    db.add(farmer)
+    db.commit()
+    db.refresh(farmer)
+    return JSONResponseHandler.success(
+        data=serialize_farmer(db, farmer),
+        message="Data petani berhasil dibuat",
+        status_code=status.HTTP_201_CREATED,
+    )
+
+
+@router.post("/with-foto", status_code=status.HTTP_201_CREATED)
+def create_farmer_with_photo(
+    nama: str = Form(...),
+    nik: str = Form(...),
+    alamat: str = Form(...),
+    hp: Optional[str] = Form(default=None),
+    desa_kelurahan_kode: str = Form(...),
+    kecamatan_kode: str = Form(...),
+    kabupaten_kota_kode: str = Form(...),
+    provinsi_kode: str = Form(...),
+    user_update_id: Optional[UUID] = Form(default=None),
+    foto: Optional[UploadFile] = File(default=None),
+    db: Session = Depends(get_db),
+):
+    payload = FarmerCreate(
+        nama=nama,
+        nik=nik,
+        alamat=alamat,
+        hp=hp,
+        desa_kelurahan_kode=desa_kelurahan_kode,
+        kecamatan_kode=kecamatan_kode,
+        kabupaten_kota_kode=kabupaten_kota_kode,
+        provinsi_kode=provinsi_kode,
+        user_update_id=user_update_id,
+    )
+    data = payload.model_dump()
+    validate_farmer_wilayah(db, data)
+    validate_user_update(db, data.get("user_update_id"))
+
+    existing = db.query(Farmer).filter(Farmer.nik == data["nik"]).first()
+    if existing:
+        raise HTTPException(status_code=400, detail="NIK petani sudah terdaftar")
+
+    foto_path = save_farmer_photo(foto) if foto and foto.filename else None
+    if foto_path:
+        data["foto_path"] = foto_path
 
     farmer = Farmer(**data)
     db.add(farmer)
@@ -202,6 +264,9 @@ def update_farmer(
         if existing:
             raise HTTPException(status_code=400, detail="NIK petani sudah terdaftar")
 
+    if "user_update_id" in data:
+        validate_user_update(db, data["user_update_id"])
+
     for key, value in data.items():
         setattr(farmer, key, value)
 
@@ -217,6 +282,7 @@ def update_farmer(
 def upload_farmer_photo(
     farmer_id: UUID,
     foto: UploadFile = File(...),
+    user_update_id: Optional[UUID] = Query(default=None),
     db: Session = Depends(get_db),
 ):
     farmer = get_farmer_or_404(db, farmer_id)
@@ -224,7 +290,10 @@ def upload_farmer_photo(
     current_foto_path = cast(Optional[str], farmer.foto_path)
     remove_farmer_photo(current_foto_path)
 
+    validate_user_update(db, user_update_id)
     setattr(farmer, "foto_path", new_foto_path)
+    if user_update_id is not None:
+        setattr(farmer, "user_update_id", user_update_id)
     db.commit()
     db.refresh(farmer)
 
@@ -235,11 +304,18 @@ def upload_farmer_photo(
 
 
 @router.delete("/{farmer_id}/foto")
-def delete_farmer_photo(farmer_id: UUID, db: Session = Depends(get_db)):
+def delete_farmer_photo(
+    farmer_id: UUID,
+    user_update_id: Optional[UUID] = Query(default=None),
+    db: Session = Depends(get_db),
+):
     farmer = get_farmer_or_404(db, farmer_id)
     current_foto_path = cast(Optional[str], farmer.foto_path)
     remove_farmer_photo(current_foto_path)
+    validate_user_update(db, user_update_id)
     setattr(farmer, "foto_path", None)
+    if user_update_id is not None:
+        setattr(farmer, "user_update_id", user_update_id)
     db.commit()
     db.refresh(farmer)
 

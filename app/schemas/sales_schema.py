@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.land_schema import LandOwnerSchema
+from app.schemas.user_schema import UserRefSchema
 
 
 class SalesProductBase(BaseModel):
@@ -13,6 +14,7 @@ class SalesProductBase(BaseModel):
     harga: float = Field(..., ge=0)
     satuan: str = Field(..., max_length=50)
     deskripsi: Optional[str] = None
+    user_update_id: Optional[UUID] = None
 
 
 class SalesProductCreate(SalesProductBase):
@@ -25,12 +27,14 @@ class SalesProductUpdate(BaseModel):
     harga: Optional[float] = Field(default=None, ge=0)
     satuan: Optional[str] = Field(default=None, max_length=50)
     deskripsi: Optional[str] = None
+    user_update_id: Optional[UUID] = None
 
 
 class SalesProductSchema(SalesProductBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    user_update: Optional[UserRefSchema] = None
 
 
 class SalePartnerRefSchema(BaseModel):
@@ -50,6 +54,7 @@ class SaleBase(BaseModel):
     harga: float = Field(..., ge=0)
     penjual_id: UUID
     pembeli_id: UUID
+    user_update_id: Optional[UUID] = None
 
 
 class SaleCreate(SaleBase):
@@ -65,6 +70,7 @@ class SaleUpdate(BaseModel):
     harga: Optional[float] = Field(default=None, ge=0)
     penjual_id: Optional[UUID] = None
     pembeli_id: Optional[UUID] = None
+    user_update_id: Optional[UUID] = None
 
 
 class SaleSchema(SaleBase):
@@ -75,3 +81,4 @@ class SaleSchema(SaleBase):
     produk_penjualan: Optional[SalesProductSchema] = None
     penjual: Optional[LandOwnerSchema] = None
     pembeli: Optional[SalePartnerRefSchema] = None
+    user_update: Optional[UserRefSchema] = None

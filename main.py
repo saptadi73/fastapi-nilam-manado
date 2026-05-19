@@ -56,17 +56,23 @@ from app.services.sales_service import product_router as sales_product_router
 from app.services.sales_service import router as sales_router
 from app.services.wilayah_service import router as wilayah_router
 
-app.include_router(auth_router)
-app.include_router(dashboard_router)
-app.include_router(wilayah_router)
-app.include_router(farmer_router)
-app.include_router(partner_router)
-app.include_router(financing_product_router)
-app.include_router(financing_router)
-app.include_router(sales_product_router)
-app.include_router(sales_router)
-app.include_router(land_router)
-app.include_router(planting_production_router)
-app.include_router(oil_production_router)
-app.include_router(planting_note_router)
-app.include_router(oil_note_router)
+routers = (
+    auth_router,
+    dashboard_router,
+    wilayah_router,
+    farmer_router,
+    partner_router,
+    financing_product_router,
+    financing_router,
+    sales_product_router,
+    sales_router,
+    land_router,
+    planting_production_router,
+    oil_production_router,
+    planting_note_router,
+    oil_note_router,
+)
+
+for router in routers:
+    app.include_router(router)
+    app.include_router(router, prefix="/api")

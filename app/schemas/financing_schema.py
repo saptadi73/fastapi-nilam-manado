@@ -6,6 +6,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.schemas.land_schema import LandOwnerSchema
 from app.schemas.planting_production_schema import PlantingProductionUserSchema
+from app.schemas.user_schema import UserRefSchema
 
 
 class FinancingProductBase(BaseModel):
@@ -13,6 +14,7 @@ class FinancingProductBase(BaseModel):
     harga: float = Field(..., ge=0)
     satuan: str = Field(..., max_length=50)
     deskripsi: Optional[str] = None
+    user_update_id: Optional[UUID] = None
 
 
 class FinancingProductCreate(FinancingProductBase):
@@ -24,12 +26,14 @@ class FinancingProductUpdate(BaseModel):
     harga: Optional[float] = Field(default=None, ge=0)
     satuan: Optional[str] = Field(default=None, max_length=50)
     deskripsi: Optional[str] = None
+    user_update_id: Optional[UUID] = None
 
 
 class FinancingProductSchema(FinancingProductBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: UUID
+    user_update: Optional[UserRefSchema] = None
 
 
 class FinancingProductionRefSchema(BaseModel):

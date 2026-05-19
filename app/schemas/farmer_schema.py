@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.user_schema import UserRefSchema
+
 
 class FarmerBase(BaseModel):
     nama: str = Field(..., max_length=150)
@@ -13,6 +15,7 @@ class FarmerBase(BaseModel):
     kecamatan_kode: str = Field(..., max_length=10)
     kabupaten_kota_kode: str = Field(..., max_length=10)
     provinsi_kode: str = Field(..., max_length=10)
+    user_update_id: Optional[UUID] = None
 
 
 class FarmerCreate(FarmerBase):
@@ -28,6 +31,7 @@ class FarmerUpdate(BaseModel):
     kecamatan_kode: Optional[str] = Field(default=None, max_length=10)
     kabupaten_kota_kode: Optional[str] = Field(default=None, max_length=10)
     provinsi_kode: Optional[str] = Field(default=None, max_length=10)
+    user_update_id: Optional[UUID] = None
 
 
 class FarmerSchema(FarmerBase):
@@ -40,3 +44,4 @@ class FarmerSchema(FarmerBase):
     kabupaten_kota: Optional[str] = None
     provinsi: Optional[str] = None
     foto_url: Optional[str] = None
+    user_update: Optional[UserRefSchema] = None

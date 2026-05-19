@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.schemas.user_schema import UserRefSchema
+
 
 class LandCoordinateBase(BaseModel):
     latitude: float = Field(..., ge=-90, le=90)
@@ -26,6 +28,7 @@ class LandBase(BaseModel):
     kecamatan_kode: Optional[str] = Field(default=None, max_length=10)
     kabupaten_kota_kode: Optional[str] = Field(default=None, max_length=10)
     provinsi_kode: Optional[str] = Field(default=None, max_length=10)
+    user_update_id: Optional[UUID] = None
 
 
 class LandOwnerSchema(BaseModel):
@@ -49,6 +52,7 @@ class LandUpdate(BaseModel):
     kecamatan_kode: Optional[str] = Field(default=None, max_length=10)
     kabupaten_kota_kode: Optional[str] = Field(default=None, max_length=10)
     provinsi_kode: Optional[str] = Field(default=None, max_length=10)
+    user_update_id: Optional[UUID] = None
     koordinat: Optional[List[LandCoordinateBase]] = None
 
 
@@ -64,4 +68,5 @@ class LandSchema(LandBase):
     kecamatan: Optional[str] = None
     kabupaten_kota: Optional[str] = None
     provinsi: Optional[str] = None
+    user_update: Optional[UserRefSchema] = None
     koordinat: List[LandCoordinateSchema] = Field(default_factory=list)

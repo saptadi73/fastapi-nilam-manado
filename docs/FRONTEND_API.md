@@ -8,6 +8,12 @@ Base URL saat development:
 http://localhost:8000
 ```
 
+Jika frontend memakai prefix API, gunakan:
+
+```txt
+http://localhost:8000/api
+```
+
 Jalankan backend:
 
 ```powershell
@@ -46,7 +52,68 @@ Response error juga memakai format yang sama:
 }
 ```
 
+Jika endpoint list belum memiliki data, backend tetap mengembalikan `200 OK`.
+Field `data` tetap mengikuti bentuk normal endpoint tersebut, misalnya `[]` atau object berisi `items: []`.
+
+```json
+{
+  "status": "success",
+  "message": "Belum ada data petani",
+  "data": []
+}
+```
+
 Catatan: contoh object/list pada bagian endpoint di bawah adalah isi dari field `data`, kecuali jika contoh menampilkan wrapper lengkap.
+
+## Audit User Update
+
+Beberapa modul operasional dan master data menyimpan `user_update_id` untuk mencatat user terakhir yang membuat atau mengubah data. Field ini bersifat opsional dan mengacu ke `users.id`.
+
+Tabel yang mendukung audit user update:
+
+```txt
+farmers
+lands
+partners
+financing_products
+financings
+sales_products
+sales
+planting_productions
+oil_productions
+planting_production_notes
+oil_production_notes
+```
+
+Payload create/update dapat mengirim:
+
+```json
+{
+  "user_update_id": "243b7917-8586-432e-9199-47bcedd8f2f9"
+}
+```
+
+Response object akan menyertakan:
+
+```json
+{
+  "user_update_id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+  "user_update": {
+    "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+    "name": "Admin Nilam",
+    "email": "admin@nilam.local"
+  }
+}
+```
+
+Untuk upload/hapus foto, `user_update_id` dikirim sebagai query param:
+
+```txt
+POST /farmers/{id}/foto?user_update_id=243b7917-8586-432e-9199-47bcedd8f2f9
+DELETE /farmers/{id}/foto?user_update_id=243b7917-8586-432e-9199-47bcedd8f2f9
+POST /lands/{id}/foto?user_update_id=243b7917-8586-432e-9199-47bcedd8f2f9
+DELETE /lands/{id}/foto?user_update_id=243b7917-8586-432e-9199-47bcedd8f2f9
+```
 
 ## Auth
 
@@ -54,6 +121,7 @@ Catatan: contoh object/list pada bagian endpoint di bawah adalah isi dari field 
 
 ```txt
 POST /auth/register
+POST /api/auth/register
 ```
 
 Payload:
@@ -95,6 +163,7 @@ Error umum:
 
 ```txt
 POST /auth/login
+POST /api/auth/login
 ```
 
 Content-Type:
@@ -384,6 +453,46 @@ Response `201 Created`:
 }
 ```
 
+### Buat Petani Dengan Foto
+
+Gunakan endpoint ini jika form tambah data petani memiliki tombol upload file dan frontend ingin submit data petani + foto dalam satu request.
+
+```txt
+POST /farmers/with-foto
+POST /api/farmers/with-foto
+```
+
+Content-Type:
+
+```txt
+multipart/form-data
+```
+
+Field form:
+
+```txt
+nama: string
+nik: string, 16 digit
+alamat: string
+hp: string, optional
+provinsi_kode: string
+kabupaten_kota_kode: string
+kecamatan_kode: string
+desa_kelurahan_kode: string
+user_update_id: UUID, optional
+foto: File, optional
+```
+
+Format file yang diterima:
+
+```txt
+image/jpeg
+image/png
+image/webp
+```
+
+Response `201 Created` sama seperti `POST /farmers`, dengan `foto_path` dan `foto_url` terisi jika file dikirim.
+
 Error NIK duplikat:
 
 ```json
@@ -611,6 +720,43 @@ await createFarmer({
 });
 ```
 
+### Submit Petani Dengan Foto
+
+```js
+async function createFarmerWithPhoto(payload, file) {
+  const formData = new FormData();
+
+  Object.entries(payload).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      formData.append(key, value);
+    }
+  });
+
+  if (file) {
+    formData.append("foto", file);
+  }
+
+  const response = await fetch(`${API_BASE_URL}/farmers/with-foto`, {
+    method: "POST",
+    body: formData,
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.message || "Gagal menyimpan petani");
+  }
+
+  return data.data;
+}
+```
+
+Contoh input file pada form tambah petani:
+
+```html
+<input type="file" name="foto" accept="image/jpeg,image/png,image/webp" />
+```
+
 ### Upload Foto
 
 ```js
@@ -649,6 +795,12 @@ export interface Wilayah {
   parent_kode: string | null;
 }
 
+export interface UserRef {
+  id: string;
+  name: string | null;
+  email: string | null;
+}
+
 export interface Farmer {
   id: string;
   nama: string;
@@ -665,6 +817,8 @@ export interface Farmer {
   kecamatan: string | null;
   kabupaten_kota: string | null;
   provinsi: string | null;
+  user_update_id: string | null;
+  user_update: UserRef | null;
 }
 
 export type FarmerCreatePayload = Omit<
@@ -676,7 +830,11 @@ export type FarmerCreatePayload = Omit<
   | "kecamatan"
   | "kabupaten_kota"
   | "provinsi"
->;
+  | "user_update_id"
+  | "user_update"
+> & {
+  user_update_id?: string | null;
+};
 
 export type FarmerUpdatePayload = Partial<FarmerCreatePayload>;
 ```
@@ -690,6 +848,7 @@ Provinsi dropdown
 Kabupaten/Kota dropdown, disabled sampai provinsi dipilih
 Kecamatan dropdown, disabled sampai kabupaten/kota dipilih
 Desa/Kelurahan dropdown, disabled sampai kecamatan dipilih
+Tombol upload foto, menerima JPG, PNG, atau WEBP
 ```
 
 Setiap kali parent berubah, kosongkan child dropdown:
@@ -1159,6 +1318,8 @@ export interface Land {
   kabupaten_kota: string | null;
   kecamatan: string | null;
   desa_kelurahan: string | null;
+  user_update_id: string | null;
+  user_update: UserRef | null;
   koordinat: LandCoordinate[];
 }
 
@@ -1172,6 +1333,7 @@ export interface LandCreatePayload {
   kabupaten_kota_kode?: string | null;
   kecamatan_kode?: string | null;
   desa_kelurahan_kode?: string | null;
+  user_update_id?: string | null;
   koordinat?: Omit<LandCoordinate, "id">[];
 }
 
@@ -2124,6 +2286,8 @@ export interface FinancingProduct {
   harga: number;
   satuan: string;
   deskripsi: string | null;
+  user_update_id: string | null;
+  user_update: UserRef | null;
 }
 
 export interface Financing {
@@ -2277,6 +2441,8 @@ export interface SalesProduct {
   harga: number;
   satuan: string;
   deskripsi: string | null;
+  user_update_id: string | null;
+  user_update: UserRef | null;
 }
 
 export interface Sale {
@@ -2290,6 +2456,7 @@ export interface Sale {
   penjual_id: string;
   pembeli_id: string;
   sub_total: number;
+  user_update_id: string | null;
   produk_penjualan: SalesProduct | null;
   penjual: {
     id: string;
@@ -2304,6 +2471,7 @@ export interface Sale {
     hp: string | null;
     email: string | null;
   } | null;
+  user_update: UserRef | null;
 }
 
 export interface SaleCreatePayload {
@@ -2315,6 +2483,7 @@ export interface SaleCreatePayload {
   harga: number;
   penjual_id: string;
   pembeli_id: string;
+  user_update_id?: string | null;
 }
 
 export type SaleUpdatePayload = Partial<SaleCreatePayload>;
@@ -2817,6 +2986,8 @@ export interface Partner {
   provinsi: string | null;
   kabupaten_kota: string | null;
   kecamatan: string | null;
+  user_update_id: string | null;
+  user_update: UserRef | null;
 }
 
 export interface PartnerCreatePayload {
@@ -2829,6 +3000,7 @@ export interface PartnerCreatePayload {
   provinsi_kode: string;
   kabupaten_kota_kode: string;
   kecamatan_kode: string;
+  user_update_id?: string | null;
 }
 
 export type PartnerUpdatePayload = Partial<PartnerCreatePayload>;

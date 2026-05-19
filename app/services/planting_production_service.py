@@ -184,7 +184,11 @@ def list_planting_productions(
 
     productions = query.order_by(PlantingProduction.tanggal_mulai.desc()).all()
     data = [serialize_planting_production(db, production) for production in productions]
-    return JSONResponseHandler.success(data=data, message="Data produksi tanam berhasil diambil")
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="produksi tanam",
+        message="Data produksi tanam berhasil diambil",
+    )
 
 
 @router.get("/{production_id}")
