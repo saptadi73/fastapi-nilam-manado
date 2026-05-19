@@ -10,8 +10,10 @@ from app.models.planting_production import PlantingProduction
 from app.models.production_note import OilProductionNote, PlantingProductionNote
 from app.models.user import User
 from app.schemas.production_note_schema import (
+    ProductionNoteCreateByProduction,
     ProductionNoteCreate,
     ProductionNoteSchema,
+    ProductionNoteUpdateByProduction,
     ProductionNoteUpdate,
 )
 from app.supports.json_response import JSONResponseHandler
@@ -22,6 +24,14 @@ planting_note_router = APIRouter(
 )
 oil_note_router = APIRouter(
     prefix="/oil-production-notes",
+    tags=["oil-production-notes"],
+)
+planting_production_note_router = APIRouter(
+    prefix="/planting-productions",
+    tags=["planting-production-notes"],
+)
+oil_production_note_router = APIRouter(
+    prefix="/oil-productions",
     tags=["oil-production-notes"],
 )
 
@@ -171,6 +181,81 @@ def delete_planting_production_note(note_id: UUID, db: Session = Depends(get_db)
     return JSONResponseHandler.success(data=None, message="Data catatan produksi tanam berhasil dihapus")
 
 
+@planting_production_note_router.get("/{production_id}/notes")
+def list_planting_notes_by_production(production_id: UUID, db: Session = Depends(get_db)):
+    validate_production_exists(db, PlantingProduction, production_id, "Produksi tanam")
+    notes = list_notes(db, PlantingProductionNote, production_id)
+    data = [serialize_note(db, note) for note in notes]
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="catatan produksi tanam",
+        message="Data catatan produksi tanam berhasil diambil",
+    )
+
+
+@planting_production_note_router.post("/{production_id}/notes", status_code=status.HTTP_201_CREATED)
+def create_planting_note_by_production(
+    production_id: UUID,
+    payload: ProductionNoteCreateByProduction,
+    db: Session = Depends(get_db),
+):
+    create_payload = ProductionNoteCreate(kode_produksi=production_id, **payload.model_dump())
+    note = create_note(
+        db,
+        create_payload,
+        PlantingProductionNote,
+        PlantingProduction,
+        "Produksi tanam",
+    )
+    return JSONResponseHandler.success(
+        data=serialize_note(db, note),
+        message="Data catatan produksi tanam berhasil dibuat",
+        status_code=status.HTTP_201_CREATED,
+    )
+
+
+@planting_production_note_router.put("/{production_id}/notes/{note_id}")
+def update_planting_note_by_production(
+    production_id: UUID,
+    note_id: UUID,
+    payload: ProductionNoteUpdateByProduction,
+    db: Session = Depends(get_db),
+):
+    validate_production_exists(db, PlantingProduction, production_id, "Produksi tanam")
+    note = get_note_or_404(db, PlantingProductionNote, note_id, "produksi tanam")
+    if note.kode_produksi != production_id:
+        raise HTTPException(status_code=400, detail="Catatan tidak sesuai produksi tanam")
+
+    update_payload = ProductionNoteUpdate(**payload.model_dump(exclude_unset=True))
+    note = update_note(
+        db,
+        note_id,
+        update_payload,
+        PlantingProductionNote,
+        PlantingProduction,
+        "produksi tanam",
+    )
+    return JSONResponseHandler.success(
+        data=serialize_note(db, note),
+        message="Data catatan produksi tanam berhasil diperbarui",
+    )
+
+
+@planting_production_note_router.delete("/{production_id}/notes/{note_id}")
+def delete_planting_note_by_production(
+    production_id: UUID,
+    note_id: UUID,
+    db: Session = Depends(get_db),
+):
+    validate_production_exists(db, PlantingProduction, production_id, "Produksi tanam")
+    note = get_note_or_404(db, PlantingProductionNote, note_id, "produksi tanam")
+    if note.kode_produksi != production_id:
+        raise HTTPException(status_code=400, detail="Catatan tidak sesuai produksi tanam")
+
+    delete_note(db, note_id, PlantingProductionNote, "produksi tanam")
+    return JSONResponseHandler.success(data=None, message="Data catatan produksi tanam berhasil dihapus")
+
+
 @oil_note_router.get("")
 def list_oil_production_notes(
     kode_produksi: Optional[UUID] = Query(default=None),
@@ -213,5 +298,67 @@ def update_oil_production_note(
 
 @oil_note_router.delete("/{note_id}")
 def delete_oil_production_note(note_id: UUID, db: Session = Depends(get_db)):
+    delete_note(db, note_id, OilProductionNote, "produksi minyak")
+    return JSONResponseHandler.success(data=None, message="Data catatan produksi minyak berhasil dihapus")
+
+
+@oil_production_note_router.get("/{production_id}/notes")
+def list_oil_notes_by_production(production_id: UUID, db: Session = Depends(get_db)):
+    validate_production_exists(db, OilProduction, production_id, "Produksi minyak")
+    notes = list_notes(db, OilProductionNote, production_id)
+    data = [serialize_note(db, note) for note in notes]
+    return JSONResponseHandler.success_list(
+        data=data,
+        label="catatan produksi minyak",
+        message="Data catatan produksi minyak berhasil diambil",
+    )
+
+
+@oil_production_note_router.post("/{production_id}/notes", status_code=status.HTTP_201_CREATED)
+def create_oil_note_by_production(
+    production_id: UUID,
+    payload: ProductionNoteCreateByProduction,
+    db: Session = Depends(get_db),
+):
+    create_payload = ProductionNoteCreate(kode_produksi=production_id, **payload.model_dump())
+    note = create_note(db, payload=create_payload, note_model=OilProductionNote, production_model=OilProduction, label="Produksi minyak")
+    return JSONResponseHandler.success(
+        data=serialize_note(db, note),
+        message="Data catatan produksi minyak berhasil dibuat",
+        status_code=status.HTTP_201_CREATED,
+    )
+
+
+@oil_production_note_router.put("/{production_id}/notes/{note_id}")
+def update_oil_note_by_production(
+    production_id: UUID,
+    note_id: UUID,
+    payload: ProductionNoteUpdateByProduction,
+    db: Session = Depends(get_db),
+):
+    validate_production_exists(db, OilProduction, production_id, "Produksi minyak")
+    note = get_note_or_404(db, OilProductionNote, note_id, "produksi minyak")
+    if note.kode_produksi != production_id:
+        raise HTTPException(status_code=400, detail="Catatan tidak sesuai produksi minyak")
+
+    update_payload = ProductionNoteUpdate(**payload.model_dump(exclude_unset=True))
+    note = update_note(db, note_id, update_payload, OilProductionNote, OilProduction, "produksi minyak")
+    return JSONResponseHandler.success(
+        data=serialize_note(db, note),
+        message="Data catatan produksi minyak berhasil diperbarui",
+    )
+
+
+@oil_production_note_router.delete("/{production_id}/notes/{note_id}")
+def delete_oil_note_by_production(
+    production_id: UUID,
+    note_id: UUID,
+    db: Session = Depends(get_db),
+):
+    validate_production_exists(db, OilProduction, production_id, "Produksi minyak")
+    note = get_note_or_404(db, OilProductionNote, note_id, "produksi minyak")
+    if note.kode_produksi != production_id:
+        raise HTTPException(status_code=400, detail="Catatan tidak sesuai produksi minyak")
+
     delete_note(db, note_id, OilProductionNote, "produksi minyak")
     return JSONResponseHandler.success(data=None, message="Data catatan produksi minyak berhasil dihapus")

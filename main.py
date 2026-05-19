@@ -50,7 +50,9 @@ from app.services.partner_service import router as partner_router
 from app.services.planting_production_service import router as planting_production_router
 from app.services.production_note_service import (
     oil_note_router,
+    oil_production_note_router,
     planting_note_router,
+    planting_production_note_router,
 )
 from app.services.sales_service import product_router as sales_product_router
 from app.services.sales_service import router as sales_router
@@ -71,6 +73,8 @@ routers = (
     oil_production_router,
     planting_note_router,
     oil_note_router,
+    planting_production_note_router,
+    oil_production_note_router,
 )
 
 for router in routers:

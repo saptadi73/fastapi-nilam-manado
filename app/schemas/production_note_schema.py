@@ -18,8 +18,20 @@ class ProductionNoteCreate(ProductionNoteBase):
     pass
 
 
+class ProductionNoteCreateByProduction(BaseModel):
+    tanggal: date
+    catatan: str = Field(..., min_length=1)
+    user_update_id: Optional[UUID] = None
+
+
 class ProductionNoteUpdate(BaseModel):
     kode_produksi: Optional[UUID] = None
+    tanggal: Optional[date] = None
+    catatan: Optional[str] = Field(default=None, min_length=1)
+    user_update_id: Optional[UUID] = None
+
+
+class ProductionNoteUpdateByProduction(BaseModel):
     tanggal: Optional[date] = None
     catatan: Optional[str] = Field(default=None, min_length=1)
     user_update_id: Optional[UUID] = None

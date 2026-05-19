@@ -1968,6 +1968,27 @@ PUT    /planting-production-notes/{id}
 DELETE /planting-production-notes/{id}
 ```
 
+Endpoint berbasis produksi (direkomendasikan untuk action button di list produksi):
+
+```txt
+GET    /planting-productions/{production_id}/notes
+POST   /planting-productions/{production_id}/notes
+PUT    /planting-productions/{production_id}/notes/{id}
+DELETE /planting-productions/{production_id}/notes/{id}
+```
+
+Payload create untuk endpoint berbasis produksi:
+
+```json
+{
+  "tanggal": "2026-05-19",
+  "catatan": "Tanam selesai di blok A",
+  "user_update_id": null
+}
+```
+
+Catatan: `kode_produksi` otomatis diambil dari path parameter `{production_id}`.
+
 Payload create:
 
 ```json
@@ -2014,6 +2035,27 @@ POST   /oil-production-notes
 PUT    /oil-production-notes/{id}
 DELETE /oil-production-notes/{id}
 ```
+
+Endpoint berbasis produksi (direkomendasikan untuk action button di list produksi):
+
+```txt
+GET    /oil-productions/{production_id}/notes
+POST   /oil-productions/{production_id}/notes
+PUT    /oil-productions/{production_id}/notes/{id}
+DELETE /oil-productions/{production_id}/notes/{id}
+```
+
+Payload create untuk endpoint berbasis produksi:
+
+```json
+{
+  "tanggal": "2026-05-20",
+  "catatan": "Penyulingan batch pertama",
+  "user_update_id": null
+}
+```
+
+Catatan: `kode_produksi` otomatis diambil dari path parameter `{production_id}`.
 
 Payload create:
 
