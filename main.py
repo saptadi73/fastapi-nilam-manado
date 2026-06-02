@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -7,6 +8,7 @@ from app.supports.cors import setup_cors
 from app.supports.json_response import JSONResponseHandler
 
 app = FastAPI()
+logger = logging.getLogger("nilam.validation")
 
 setup_cors(app)
 Path("uploads").mkdir(exist_ok=True)
@@ -22,7 +24,15 @@ def http_exception_handler(request: Request, exc: HTTPException):
 
 
 @app.exception_handler(RequestValidationError)
-def validation_exception_handler(request: Request, exc: RequestValidationError):
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    body = await request.body()
+    logger.warning(
+        "Request validation failed: %s %s errors=%s body=%s",
+        request.method,
+        request.url.path,
+        exc.errors(),
+        body.decode("utf-8", errors="replace")[:2000],
+    )
     return JSONResponseHandler.error(
         message="Validation error",
         data=exc.errors(),
