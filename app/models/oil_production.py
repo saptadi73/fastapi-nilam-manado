@@ -17,6 +17,8 @@ class OilProduction(Base):
     berat_kering_bahan = Column(Float, nullable=True)
     hasil_minyak = Column(Float, nullable=True)
     aktual_hasil_minyak = Column(Float, nullable=True)
+    tempat_penyulingan = Column(String(255), nullable=True)
+    harga_penyulingan_per_kg = Column(Float, nullable=True)
     redaman = Column(Float, nullable=True)
     petani_id = Column(UUID(as_uuid=True), ForeignKey("farmers.id"), nullable=False, index=True)
     lahan_id = Column(UUID(as_uuid=True), ForeignKey("lands.id"), nullable=True, index=True)

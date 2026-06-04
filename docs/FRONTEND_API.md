@@ -1694,6 +1694,8 @@ selesai
   "berat_kering_bahan": 1000,
   "hasil_minyak": 24,
   "aktual_hasil_minyak": 25,
+  "tempat_penyulingan": "Penyulingan Airmadidi",
+  "harga_penyulingan_per_kg": 15000,
   "redaman": 0.025,
   "petani_id": "243b7917-8586-432e-9199-47bcedd8f2f9",
   "lahan_id": "ccd178d6-77bd-4d12-819f-3bb1fe30ba4c",
@@ -1725,6 +1727,8 @@ aktual_tanggal_akhir  optional, format YYYY-MM-DD
 berat_kering_bahan    optional, angka >= 0
 hasil_minyak          optional, angka >= 0
 aktual_hasil_minyak   optional, angka >= 0
+tempat_penyulingan    optional, max 255
+harga_penyulingan_per_kg optional, angka >= 0
 redaman               dihitung backend
 petani_id             required, UUID petani
 lahan_id              optional, UUID lahan
@@ -1814,6 +1818,8 @@ Payload lengkap:
   "berat_kering_bahan": 1000,
   "hasil_minyak": 24,
   "aktual_hasil_minyak": 25,
+  "tempat_penyulingan": "Penyulingan Airmadidi",
+  "harga_penyulingan_per_kg": 15000,
   "petani_id": "243b7917-8586-432e-9199-47bcedd8f2f9",
   "lahan_id": "ccd178d6-77bd-4d12-819f-3bb1fe30ba4c",
   "status": "selesai",
@@ -1890,6 +1896,8 @@ export interface OilProduction {
   berat_kering_bahan: number | null;
   hasil_minyak: number | null;
   aktual_hasil_minyak: number | null;
+  tempat_penyulingan: string | null;
+  harga_penyulingan_per_kg: number | null;
   redaman: number | null;
   petani_id: string;
   lahan_id: string | null;
@@ -1922,6 +1930,8 @@ export interface OilProductionCreatePayload {
   berat_kering_bahan?: number | null;
   hasil_minyak?: number | null;
   aktual_hasil_minyak?: number | null;
+  tempat_penyulingan?: string | null;
+  harga_penyulingan_per_kg?: number | null;
   petani_id: string;
   lahan_id?: string | null;
   status: OilProductionStatus;

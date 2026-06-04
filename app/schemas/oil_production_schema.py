@@ -16,6 +16,8 @@ class OilProductionBase(BaseModel):
     berat_kering_bahan: Optional[float] = Field(default=None, ge=0)
     hasil_minyak: Optional[float] = Field(default=None, ge=0)
     aktual_hasil_minyak: Optional[float] = Field(default=None, ge=0)
+    tempat_penyulingan: Optional[str] = Field(default=None, max_length=255)
+    harga_penyulingan_per_kg: Optional[float] = Field(default=None, ge=0)
     petani_id: UUID
     lahan_id: Optional[UUID] = None
     status: str = Field(..., max_length=20)
@@ -34,6 +36,8 @@ class OilProductionUpdate(BaseModel):
     berat_kering_bahan: Optional[float] = Field(default=None, ge=0)
     hasil_minyak: Optional[float] = Field(default=None, ge=0)
     aktual_hasil_minyak: Optional[float] = Field(default=None, ge=0)
+    tempat_penyulingan: Optional[str] = Field(default=None, max_length=255)
+    harga_penyulingan_per_kg: Optional[float] = Field(default=None, ge=0)
     petani_id: Optional[UUID] = None
     lahan_id: Optional[UUID] = None
     status: Optional[str] = Field(default=None, max_length=20)
