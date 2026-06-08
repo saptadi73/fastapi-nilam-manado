@@ -3057,3 +3057,83 @@ export interface PartnerCreatePayload {
 
 export type PartnerUpdatePayload = Partial<PartnerCreatePayload>;
 ```
+
+## BSP Integration grt_external_api
+
+Bagian ini dipakai untuk kontrak integrasi external ke Odoo BSP Integration. Di sisi external, jangan mengirim `collection_line_id` internal Odoo karena ID tersebut hanya diketahui oleh Odoo.
+
+Untuk Milk Adjustment, acuan data collection memakai `transaction_id` dari external. Nilai ini harus sama dengan field `reference` pada collection line di Odoo.
+
+```txt
+external.transaction_id
+=> grt_milk_collection.reference
+=> collection line internal Odoo
+=> Milk Adjustment.collection_line
+```
+
+### Endpoint List grt_external_api
+
+```txt
+POST /grt_external_api/milk-adjustment
+```
+
+Endpoint ini membuat Milk Adjustment berdasarkan `transaction_id` external. Backend/Odoo harus mencari collection line dengan `reference = transaction_id`.
+
+Payload valid:
+
+```json
+{
+  "transaction_id": "TRX-MILK-20260608-0001",
+  "adjustment_type": "quantity",
+  "new_value": 12.5,
+  "adjustment_date": "2026-06-08 10:39:08",
+  "reason": "Koreksi liter susu dari external"
+}
+```
+
+Field payload:
+
+```txt
+transaction_id    required, string, ID transaksi dari external; dicocokkan ke reference collection line Odoo
+adjustment_type   required, string, jenis field yang dikoreksi sesuai konfigurasi Odoo
+new_value         required, number, nilai baru setelah koreksi
+adjustment_date   optional, datetime string; jika kosong Odoo boleh memakai waktu server
+reason            required, string, alasan koreksi
+```
+
+Contoh response sukses:
+
+```json
+{
+  "status": "success",
+  "message": "Milk adjustment berhasil dibuat",
+  "data": {
+    "transaction_id": "TRX-MILK-20260608-0001",
+    "reference": "TRX-MILK-20260608-0001",
+    "adjustment_id": 128,
+    "collection_line_id": 4567,
+    "adjustment_type": "quantity",
+    "old_value": 10,
+    "new_value": 12.5,
+    "difference_value": 2.5
+  }
+}
+```
+
+Error umum:
+
+```json
+{
+  "status": "error",
+  "message": "Collection line tidak ditemukan untuk transaction_id TRX-MILK-20260608-0001",
+  "data": null
+}
+```
+
+Catatan implementasi:
+
+```txt
+collection_line = grt_milk_collection.search([("reference", "=", transaction_id)], limit=1)
+```
+
+Jika ditemukan lebih dari satu collection line dengan `reference` yang sama, integrasi harus mengembalikan error karena `transaction_id` external wajib unik.
