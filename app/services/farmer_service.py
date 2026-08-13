@@ -18,6 +18,8 @@ router = APIRouter(prefix="/farmers", tags=["farmers"])
 UPLOAD_ROOT = Path("uploads")
 FARMER_PHOTO_DIR = UPLOAD_ROOT / "farmers"
 ALLOWED_PHOTO_CONTENT_TYPES = {"image/jpeg", "image/png", "image/webp"}
+MAX_PHOTO_SIZE = 5 * 1024 * 1024
+PHOTO_READ_CHUNK_SIZE = 1024 * 1024
 
 
 def _get_wilayah(db: Session, kode: str, level: str):
@@ -131,9 +133,20 @@ def save_farmer_photo(foto: UploadFile):
     filename = f"{uuid4().hex}{suffix}"
     destination = FARMER_PHOTO_DIR / filename
 
-    with destination.open("wb") as output_file:
-        while chunk := foto.file.read(1024 * 1024):
-            output_file.write(chunk)
+    written_size = 0
+    try:
+        with destination.open("wb") as output_file:
+            while chunk := foto.file.read(PHOTO_READ_CHUNK_SIZE):
+                written_size += len(chunk)
+                if written_size > MAX_PHOTO_SIZE:
+                    raise HTTPException(
+                        status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                        detail="Ukuran foto maksimal 5 MB",
+                    )
+                output_file.write(chunk)
+    except Exception:
+        destination.unlink(missing_ok=True)
+        raise
 
     return destination.as_posix()
 
