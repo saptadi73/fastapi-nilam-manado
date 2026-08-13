@@ -491,6 +491,8 @@ image/png
 image/webp
 ```
 
+Ukuran file maksimum: **5 MB** (`5 * 1024 * 1024` byte).
+
 Response `201 Created` sama seperti `POST /farmers`, dengan `foto_path` dan `foto_url` terisi jika file dikirim.
 
 Error NIK duplikat:
@@ -579,6 +581,8 @@ image/png
 image/webp
 ```
 
+Ukuran file maksimum: **5 MB** (`5 * 1024 * 1024` byte).
+
 Response `200 OK`:
 
 ```json
@@ -611,6 +615,16 @@ Error format file:
 {
   "status": "error",
   "message": "Foto harus berformat JPG, PNG, atau WEBP",
+  "data": null
+}
+```
+
+Error ukuran file `413 Content Too Large`:
+
+```json
+{
+  "status": "error",
+  "message": "Ukuran foto maksimal 5 MB",
   "data": null
 }
 ```
@@ -724,6 +738,12 @@ await createFarmer({
 
 ```js
 async function createFarmerWithPhoto(payload, file) {
+  const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+
+  if (file && file.size > MAX_PHOTO_SIZE) {
+    throw new Error("Ukuran foto maksimal 5 MB");
+  }
+
   const formData = new FormData();
 
   Object.entries(payload).forEach(([key, value]) => {
@@ -761,6 +781,12 @@ Contoh input file pada form tambah petani:
 
 ```js
 async function uploadFarmerPhoto(farmerId, file) {
+  const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    throw new Error("Ukuran foto maksimal 5 MB");
+  }
+
   const formData = new FormData();
   formData.append("foto", file);
 
@@ -1203,6 +1229,8 @@ image/png
 image/webp
 ```
 
+Ukuran file maksimum: **5 MB** (`5 * 1024 * 1024` byte).
+
 Response `200 OK`:
 
 ```json
@@ -1215,6 +1243,16 @@ Response `200 OK`:
     "foto_path": "uploads/lands/abc123.png",
     "foto_url": "/uploads/lands/abc123.png"
   }
+}
+```
+
+Error ukuran file `413 Content Too Large`:
+
+```json
+{
+  "status": "error",
+  "message": "Ukuran foto maksimal 5 MB",
+  "data": null
 }
 ```
 
@@ -1264,6 +1302,12 @@ async function createLand(payload) {
 }
 
 async function uploadLandPhoto(landId, file) {
+  const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+
+  if (file.size > MAX_PHOTO_SIZE) {
+    throw new Error("Ukuran foto maksimal 5 MB");
+  }
+
   const formData = new FormData();
   formData.append("foto", file);
 
