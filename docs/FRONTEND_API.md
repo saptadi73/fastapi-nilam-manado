@@ -2746,7 +2746,7 @@ Response `data`:
 
 ### Ringkasan Total Petani
 
-Endpoint ini digunakan untuk mengisi card petani dengan total penjualan, produksi minyak aktual, expense, serta jumlah produksi tanam dan minyak yang sedang berjalan.
+Endpoint ini digunakan untuk mengisi card petani dalam satu request. Gunakan `petani_id` dari item `GET /farmers` untuk mengambil ringkasan setiap petani.
 
 ```txt
 GET /dashboard/farmers/{petani_id}/summary
@@ -2766,6 +2766,17 @@ Response `data`:
 }
 ```
 
+Mapping card petani:
+
+```txt
+Total Penjualan       = total_penjualan
+Total Produksi Minyak = total_produksi_minyak
+Pending Tanam         = jumlah_produksi_tanam_berjalan
+Pending Minyak        = jumlah_produksi_minyak_berjalan
+```
+
+Filter tanggal hanya diterapkan pada `total_penjualan`, `total_produksi_minyak`, dan `total_expense`. Jumlah produksi berjalan selalu menampilkan kondisi terkini.
+
 ### Total Penjualan Berdasarkan Kabupaten Petani
 
 ```txt
@@ -2775,7 +2786,7 @@ GET /dashboard/sales/by-regency
 GET /dashboard/sales/by-regency?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
 ```
 
-Endpoint ini cocok untuk pie chart distribusi penjualan berdasarkan `kabupaten_kota_kode` dari data petani penjual. Field `persentase` dihitung dari total penjualan seluruh kabupaten pada filter yang sama.
+Gunakan endpoint ini untuk bar chart **Total Penjualan Petani per Kabupaten**, sebagai pengganti bar chart per petani yang dapat menghasilkan terlalu banyak label. Gunakan `kabupaten_kota` sebagai label sumbu dan `total_penjualan` sebagai nilai bar. Field `persentase` dihitung dari total penjualan seluruh kabupaten pada filter yang sama.
 
 Response `data`:
 
