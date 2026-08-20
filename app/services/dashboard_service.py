@@ -260,7 +260,48 @@ def total_sales_by_farmer(
     )
 
 
+@router.get("/farmers/{petani_id}/summary")
+def farmer_summary(
+    petani_id: UUID,
+    tanggal_mulai: Optional[date] = Query(default=None),
+    tanggal_akhir: Optional[date] = Query(default=None),
+    db: Session = Depends(get_db),
+):
+    """Return the values needed by the farmer card in one request."""
+    sales_query = db.query(func.coalesce(func.sum(Sale.sub_total), 0)).filter(Sale.penjual_id == petani_id)
+    expense_query = db.query(func.coalesce(func.sum(Financing.sub_total), 0)).filter(Financing.petani_id == petani_id)
+    oil_query = db.query(func.coalesce(func.sum(OilProduction.aktual_hasil_minyak), 0)).filter(
+        OilProduction.petani_id == petani_id
+    )
+    planting_running_query = db.query(func.count(PlantingProduction.id)).filter(
+        PlantingProduction.petani_id == petani_id,
+        PlantingProduction.status == "berjalan",
+    )
+    oil_running_query = db.query(func.count(OilProduction.id)).filter(
+        OilProduction.petani_id == petani_id,
+        OilProduction.status == "berjalan",
+    )
+
+    sales_query = apply_date_filter(sales_query, Sale.tanggal, tanggal_mulai, tanggal_akhir)
+    expense_query = apply_date_filter(expense_query, Financing.tanggal, tanggal_mulai, tanggal_akhir)
+    oil_query = apply_date_filter(oil_query, OilProduction.tanggal_mulai, tanggal_mulai, tanggal_akhir)
+
+    data = {
+        "petani_id": petani_id,
+        "total_penjualan": float(sales_query.scalar() or 0),
+        "total_produksi_minyak": float(oil_query.scalar() or 0),
+        "total_expense": float(expense_query.scalar() or 0),
+        "jumlah_produksi_tanam_berjalan": int(planting_running_query.scalar() or 0),
+        "jumlah_produksi_minyak_berjalan": int(oil_running_query.scalar() or 0),
+    }
+    return JSONResponseHandler.success(
+        data=data,
+        message="Ringkasan petani berhasil diambil",
+    )
+
+
 @router.get("/sales/by-farmer-regency")
+@router.get("/sales/by-regency")
 def total_sales_by_farmer_regency(
     tanggal_mulai: Optional[date] = Query(default=None),
     tanggal_akhir: Optional[date] = Query(default=None),
