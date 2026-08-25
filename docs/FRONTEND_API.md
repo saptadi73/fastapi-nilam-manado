@@ -2751,7 +2751,14 @@ Endpoint ini digunakan untuk mengisi card petani dalam satu request. Gunakan `pe
 ```txt
 GET /dashboard/farmers/{petani_id}/summary
 GET /dashboard/farmers/{petani_id}/summary?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31
+GET /dashboard/farmers/{petani_id}/summary?tanggal_mulai=2026-01-01
+GET /dashboard/farmers/{petani_id}/summary?tanggal_akhir=2026-12-31
 ```
+
+Tanpa query parameter tanggal, endpoint mengembalikan total keseluruhan. Jika
+`tanggal_mulai` dikirim, data sebelum tanggal tersebut dikecualikan. Jika
+`tanggal_akhir` dikirim, data setelah tanggal tersebut dikecualikan. Kedua parameter
+boleh digunakan bersama sebagai rentang tanggal inklusif.
 
 Response `data`:
 
@@ -2761,6 +2768,7 @@ Response `data`:
   "total_penjualan": 6600000,
   "total_produksi_minyak": 125.5,
   "total_expense": 1500000,
+  "rasio_rata_rata_produksi_ke_minyak": 0.025,
   "jumlah_produksi_tanam_berjalan": 2,
   "jumlah_produksi_minyak_berjalan": 1
 }
@@ -2769,13 +2777,23 @@ Response `data`:
 Mapping card petani:
 
 ```txt
-Total Penjualan       = total_penjualan
-Total Produksi Minyak = total_produksi_minyak
-Pending Tanam         = jumlah_produksi_tanam_berjalan
-Pending Minyak        = jumlah_produksi_minyak_berjalan
+Total Penjualan         = total_penjualan
+Total Produksi Minyak   = total_produksi_minyak
+Total Expense           = total_expense
+Rasio Tanaman ke Minyak = rasio_rata_rata_produksi_ke_minyak
+Pending Tanam           = jumlah_produksi_tanam_berjalan
+Pending Minyak          = jumlah_produksi_minyak_berjalan
 ```
 
-Filter tanggal hanya diterapkan pada `total_penjualan`, `total_produksi_minyak`, dan `total_expense`. Jumlah produksi berjalan selalu menampilkan kondisi terkini.
+Filter tanggal hanya diterapkan pada `total_penjualan`, `total_produksi_minyak`,
+`total_expense`, dan `rasio_rata_rata_produksi_ke_minyak`. Jumlah produksi berjalan
+selalu menampilkan kondisi terkini.
+
+`rasio_rata_rata_produksi_ke_minyak` adalah rendemen tertimbang yang dihitung
+dengan rumus `sum(aktual_hasil_minyak) / sum(berat_kering_bahan)`. Produksi yang
+belum mempunyai `aktual_hasil_minyak`, belum mempunyai `berat_kering_bahan`, atau
+memiliki berat bahan nol tidak disertakan. Nilainya `null` jika belum ada produksi
+yang memenuhi syarat. Kalikan nilai dengan 100 untuk menampilkannya sebagai persen.
 
 ### Total Penjualan Berdasarkan Kabupaten Petani
 
@@ -2942,6 +2960,16 @@ export interface DashboardFarmer {
   nama: string;
   nik: string;
   hp: string | null;
+}
+
+export interface FarmerSummary {
+  petani_id: string;
+  total_penjualan: number;
+  total_produksi_minyak: number;
+  total_expense: number;
+  rasio_rata_rata_produksi_ke_minyak: number | null;
+  jumlah_produksi_tanam_berjalan: number;
+  jumlah_produksi_minyak_berjalan: number;
 }
 
 export interface MonthlySalesReport {

@@ -273,6 +273,15 @@ def farmer_summary(
     oil_query = db.query(func.coalesce(func.sum(OilProduction.aktual_hasil_minyak), 0)).filter(
         OilProduction.petani_id == petani_id
     )
+    oil_ratio_query = db.query(
+        func.coalesce(func.sum(OilProduction.aktual_hasil_minyak), 0).label("total_hasil_minyak"),
+        func.coalesce(func.sum(OilProduction.berat_kering_bahan), 0).label("total_bahan_kering"),
+    ).filter(
+        OilProduction.petani_id == petani_id,
+        OilProduction.aktual_hasil_minyak.isnot(None),
+        OilProduction.berat_kering_bahan.isnot(None),
+        OilProduction.berat_kering_bahan > 0,
+    )
     planting_running_query = db.query(func.count(PlantingProduction.id)).filter(
         PlantingProduction.petani_id == petani_id,
         PlantingProduction.status == "berjalan",
@@ -285,12 +294,25 @@ def farmer_summary(
     sales_query = apply_date_filter(sales_query, Sale.tanggal, tanggal_mulai, tanggal_akhir)
     expense_query = apply_date_filter(expense_query, Financing.tanggal, tanggal_mulai, tanggal_akhir)
     oil_query = apply_date_filter(oil_query, OilProduction.tanggal_mulai, tanggal_mulai, tanggal_akhir)
+    oil_ratio_query = apply_date_filter(
+        oil_ratio_query,
+        OilProduction.tanggal_mulai,
+        tanggal_mulai,
+        tanggal_akhir,
+    )
+
+    oil_ratio = oil_ratio_query.one()
+    total_ratio_oil = float(oil_ratio.total_hasil_minyak or 0)
+    total_ratio_dry = float(oil_ratio.total_bahan_kering or 0)
 
     data = {
         "petani_id": petani_id,
         "total_penjualan": float(sales_query.scalar() or 0),
         "total_produksi_minyak": float(oil_query.scalar() or 0),
         "total_expense": float(expense_query.scalar() or 0),
+        "rasio_rata_rata_produksi_ke_minyak": (
+            total_ratio_oil / total_ratio_dry if total_ratio_dry else None
+        ),
         "jumlah_produksi_tanam_berjalan": int(planting_running_query.scalar() or 0),
         "jumlah_produksi_minyak_berjalan": int(oil_running_query.scalar() or 0),
     }
