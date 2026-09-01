@@ -2587,7 +2587,32 @@ export type SaleUpdatePayload = Partial<SaleCreatePayload>;
 
 ## Dashboard
 
-Endpoint dashboard menyediakan data agregat untuk grafik dan tabel performa. Semua response tetap memakai wrapper standar:
+Endpoint dashboard menyediakan data agregat untuk grafik dan tabel performa.
+
+### Akses Publik (Tanpa Login)
+
+Semua endpoint dashboard dapat diakses oleh pengunjung umum **tanpa login dan tanpa token autentikasi**. Frontend tidak perlu mengirim header `Authorization` atau Bearer token.
+
+Endpoint tersedia melalui kedua prefix berikut:
+
+```txt
+/dashboard/...
+/api/dashboard/...
+```
+
+Contoh request publik:
+
+```ts
+const response = await fetch(
+  `${API_BASE_URL}/dashboard/sales/monthly?tanggal_mulai=2026-01-01&tanggal_akhir=2026-12-31`,
+);
+
+const result = await response.json();
+```
+
+> Catatan: akses tanpa autentikasi ini khusus endpoint dashboard. Endpoint lain yang dilindungi tetap harus mengirim `Authorization: Bearer <access_token>`.
+
+Semua response dashboard memakai wrapper standar:
 
 ```json
 {
