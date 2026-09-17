@@ -17,10 +17,12 @@ def register(
     db: Session = Depends(get_db),
     _current_admin: User = Depends(require_admin),
 ):
-    db_user = get_user_by_email(db, user.email)
+    normalized_email = user.email.strip().lower()
+    db_user = get_user_by_email(db, normalized_email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     user_data = user.model_dump()
+    user_data["email"] = normalized_email
     user_data["password"] = get_password_hash(user_data["password"])
     created_user = create_user(db, user_data)
     data = UserResponseSchema.model_validate(created_user).model_dump()
@@ -28,7 +30,8 @@ def register(
 
 @router.post("/login")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = get_user_by_email(db, form_data.username)
+    normalized_email = form_data.username.strip().lower()
+    user = get_user_by_email(db, normalized_email)
     if not user or not verify_password(form_data.password, user.password):
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     access_token = create_access_token({"sub": user.email})
