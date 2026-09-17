@@ -1,9 +1,13 @@
 from pathlib import Path
 import logging
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.orm import Session
+from app.database import get_db
 from app.supports.cors import setup_cors
 from app.supports.json_response import JSONResponseHandler
 
@@ -46,6 +50,25 @@ def read_root():
         message="Nilam ERP API is running",
         data={"service": "fastapi-nilam-manado"},
     )
+
+
+def database_health(db: Session = Depends(get_db)):
+    try:
+        db.execute(text("SELECT 1"))
+        return JSONResponseHandler.success(
+            message="Database connection is healthy",
+            data={"status": "connected"},
+        )
+    except SQLAlchemyError:
+        return JSONResponseHandler.error(
+            message="Database connection failed",
+            data={"status": "disconnected"},
+            status_code=503,
+        )
+
+
+app.add_api_route("/health/database", database_health, methods=["GET"])
+app.add_api_route("/api/health/database", database_health, methods=["GET"])
 
 
 # Import dan include router autentikasi

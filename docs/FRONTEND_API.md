@@ -22,6 +22,17 @@ Jalankan backend:
 
 ## Format Umum
 
+## Health Check Database
+
+```txt
+GET /health/database
+GET /api/health/database
+```
+
+Endpoint ini menjalankan query ringan ke database. Jika koneksi sehat, response
+berstatus `200` dengan `data.status = "connected"`; jika gagal, response
+berstatus `503` dengan `data.status = "disconnected"`.
+
 Semua request dan response menggunakan JSON, kecuali endpoint login OAuth2 yang memakai `application/x-www-form-urlencoded`.
 
 Header umum:
