@@ -124,13 +124,17 @@ POST /auth/register
 POST /api/auth/register
 ```
 
+Endpoint ini hanya dapat dipanggil oleh user dengan role `ADMIN`. Admin wajib
+memilih role untuk user baru: `ADMIN`, `OFFICER`, atau `USER`.
+
 Payload:
 
 ```json
 {
   "name": "Admin Nilam",
   "email": "admin@nilam.local",
-  "password": "password123"
+  "password": "password123",
+  "role": "OFFICER"
 }
 ```
 
@@ -144,10 +148,13 @@ Response `200 OK`:
     "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
     "name": "Admin Nilam",
     "email": "admin@nilam.local",
-    "password": "$2b$12$..."
+    "role": "OFFICER"
   }
 }
 ```
+
+Kirim token admin pada header `Authorization: Bearer <access_token>`. Tanpa
+token atau dengan role selain `ADMIN`, request ditolak.
 
 Error umum:
 
@@ -187,12 +194,29 @@ Response `200 OK`:
   "message": "Login berhasil",
   "data": {
     "access_token": "jwt-token",
-    "token_type": "bearer"
+    "token_type": "bearer",
+    "user": {
+      "id": "243b7917-8586-432e-9199-47bcedd8f2f9",
+      "name": "Admin Nilam",
+      "email": "admin@nilam.local",
+      "role": "ADMIN"
+    }
   }
 }
 ```
 
 Simpan `access_token` di frontend untuk endpoint yang nanti membutuhkan auth.
+
+### Hak Akses Role Frontend
+
+| Role | Akses |
+| --- | --- |
+| `ADMIN` | Registrasi user dan seluruh CRUD aplikasi. |
+| `OFFICER` | Seluruh CRUD Master Data, Produksi Tanam, Produksi Minyak, dan Pembiayaan. Tidak dapat registrasi user. |
+| `USER` | Pengisian Produksi Tanam, Produksi Minyak, dan Pembiayaan. |
+
+Frontend menyembunyikan menu dan memblokir route yang tidak sesuai role. Backend
+tetap menjadi sumber otorisasi utama untuk setiap endpoint.
 
 ## Master Wilayah GIS
 

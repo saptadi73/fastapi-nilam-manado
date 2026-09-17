@@ -1,24 +1,29 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.schemas.user_schema import UserSchema
+from app.schemas.user_schema import UserResponseSchema, UserSchema
 from app.models.user import User
 from app.database import get_db
 from app.supports.jwt_handler import get_password_hash, verify_password, create_access_token
 from app.supports.json_response import JSONResponseHandler
 from app.services.user_service import get_user_by_email, create_user
 from fastapi.security import OAuth2PasswordRequestForm
+from app.supports.auth_dependency import require_admin
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register")
-def register(user: UserSchema, db: Session = Depends(get_db)):
+def register(
+    user: UserSchema,
+    db: Session = Depends(get_db),
+    _current_admin: User = Depends(require_admin),
+):
     db_user = get_user_by_email(db, user.email)
     if db_user:
         raise HTTPException(status_code=400, detail="Email already registered")
     user_data = user.model_dump()
     user_data["password"] = get_password_hash(user_data["password"])
     created_user = create_user(db, user_data)
-    data = UserSchema.model_validate(created_user).model_dump()
+    data = UserResponseSchema.model_validate(created_user).model_dump()
     return JSONResponseHandler.success(data=data, message="Registrasi berhasil")
 
 @router.post("/login")
@@ -28,6 +33,15 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depend
         raise HTTPException(status_code=400, detail="Incorrect email or password")
     access_token = create_access_token({"sub": user.email})
     return JSONResponseHandler.success(
-        data={"access_token": access_token, "token_type": "bearer"},
+        data={
+            "access_token": access_token,
+            "token_type": "bearer",
+            "user": {
+                "id": user.id,
+                "name": user.name,
+                "email": user.email,
+                "role": user.role,
+            },
+        },
         message="Login berhasil",
     )
